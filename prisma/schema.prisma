@@ -1,0 +1,253 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model answers {
+  id             Int             @id @default(autoincrement())
+  submission_id  Int?
+  question_id    Int?
+  graded_by      graded_by_type?
+  graded_at      DateTime?       @db.Timestamp(6)
+  questions      questions?      @relation(fields: [question_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  submissions    submissions?    @relation(fields: [submission_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  essay_answers  essay_answers?
+  mcq_tf_answers mcq_tf_answers?
+
+  @@unique([submission_id, question_id])
+  @@index([question_id], map: "idx_answers_question_id")
+}
+
+model cart_items {
+  id            Int      @id @default(autoincrement())
+  cart_id       Int?
+  course_id     Int?
+  price_at_time Decimal  @db.Decimal(10, 2)
+  carts         carts?   @relation(fields: [cart_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  courses       courses? @relation(fields: [course_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([cart_id, course_id])
+  @@index([cart_id], map: "idx_cart_items_cart_id")
+}
+
+model carts {
+  id         Int          @id @default(autoincrement())
+  user_id    Int?
+  status     cart_status? @default(Active)
+  cart_items cart_items[]
+  users      users?       @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "carts_student_id_fkey")
+  payments   payments?
+}
+
+model categories {
+  id      Int       @id @default(autoincrement())
+  name    String    @unique @db.VarChar(255)
+  courses courses[]
+}
+
+model courses {
+  id                 Int                @id @default(autoincrement())
+  title              String             @db.VarChar(255)
+  description        String?
+  teacher_id         Int?
+  category_id        Int?
+  is_published       Boolean?           @default(false)
+  thumbnail_url      String?            @db.VarChar(255)
+  difficulty         course_difficulty?
+  price              Decimal?           @db.Decimal(10, 2)
+  estimated_duration Int?
+  status             course_status?     @default(Pending)
+  approved_at        DateTime?          @db.Timestamp(6)
+  createdat          DateTime?          @default(now()) @db.Timestamp(6)
+  cart_items         cart_items[]
+  categories         categories?        @relation(fields: [category_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users              users?             @relation(fields: [teacher_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  enrollments        enrollments[]
+  lessons            lessons[]
+  messages           messages[]
+}
+
+model enrollments {
+  id                   Int       @id @default(autoincrement())
+  student_id           Int?
+  course_id            Int?
+  current_lesson_order Int?      @default(1)
+  completed            Boolean?  @default(false)
+  enrolledat           DateTime? @default(now()) @db.Timestamp(6)
+  courses              courses?  @relation(fields: [course_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users                users?    @relation(fields: [student_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([student_id, course_id])
+  @@index([student_id], map: "idx_enrollments_student_id")
+}
+
+model essay_answers {
+  answer_id        Int     @id
+  answer_text      String?
+  ai_score         Int?
+  ai_feedback      String?
+  similarity_score Float?
+  answers          answers @relation(fields: [answer_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model lessons {
+  id           Int           @id @default(autoincrement())
+  course_id    Int?
+  title        String        @db.VarChar(255)
+  order_number Int
+  content_type content_type
+  video_url    String?       @db.VarChar(255)
+  createdat    DateTime?     @default(now()) @db.Timestamp(6)
+  courses      courses?      @relation(fields: [course_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  questions    questions[]
+  submissions  submissions[]
+
+  @@unique([course_id, order_number])
+  @@index([course_id], map: "idx_lessons_course_id")
+}
+
+model local_credentials {
+  user_id                      Int       @id
+  password_hash                String    @db.VarChar(255)
+  verification_code            String?   @db.VarChar(255)
+  verification_code_expires_at DateTime? @db.Timestamp(6)
+  email_verified               Boolean?  @default(false)
+  users                        users     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model mcq_tf_answers {
+  answer_id          Int      @id
+  selected_option_id Int?
+  answers            answers  @relation(fields: [answer_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  options            options? @relation(fields: [selected_option_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model messages {
+  id        Int       @id @default(autoincrement())
+  course_id Int?
+  sender_id Int?
+  content   String?
+  createdat DateTime? @default(now()) @db.Timestamp(6)
+  courses   courses?  @relation(fields: [course_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users     users?    @relation(fields: [sender_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([course_id], map: "idx_messages_course_id")
+}
+
+model options {
+  id             Int              @id @default(autoincrement())
+  question_id    Int?
+  option_text    String?
+  is_correct     Boolean?         @default(false)
+  mcq_tf_answers mcq_tf_answers[]
+  questions      questions?       @relation(fields: [question_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([question_id], map: "idx_options_question_id")
+}
+
+model payments {
+  id      Int             @id @default(autoincrement())
+  cart_id Int?            @unique
+  amount  Decimal         @db.Decimal(10, 2)
+  status  payment_status? @default(Pending)
+  paid_at DateTime?       @db.Timestamp(6)
+  carts   carts?          @relation(fields: [cart_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([cart_id], map: "idx_payments_cart_id")
+}
+
+model questions {
+  id            Int            @id @default(autoincrement())
+  lesson_id     Int?
+  question_text String?        @db.VarChar(255)
+  question_type question_type?
+  model_answer  String?
+  answers       answers[]
+  options       options[]
+  lessons       lessons?       @relation(fields: [lesson_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([lesson_id], map: "idx_questions_lesson_id")
+}
+
+model submissions {
+  id          Int       @id @default(autoincrement())
+  lesson_id   Int?
+  student_id  Int?
+  submittedat DateTime? @default(now()) @db.Timestamp(6)
+  grade       Int?
+  answers     answers[]
+  lessons     lessons?  @relation(fields: [lesson_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users       users?    @relation(fields: [student_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([lesson_id, student_id])
+}
+
+model users {
+  id                Int                @id @default(autoincrement())
+  email             String             @unique @db.VarChar(255)
+  username          String?            @db.VarChar(255)
+  type              user_type
+  image             String?            @db.VarChar(255)
+  points            Int?               @default(0)
+  provider          provider_type
+  createdat         DateTime?          @default(now()) @db.Timestamp(6)
+  carts             carts[]
+  courses           courses[]
+  enrollments       enrollments[]
+  local_credentials local_credentials?
+  messages          messages[]
+  submissions       submissions[]
+}
+
+enum cart_status {
+  Active
+  CheckedOut
+}
+
+enum content_type {
+  Video
+  Quiz
+}
+
+enum course_difficulty {
+  Beginner
+  Intermediate
+  Advanced
+}
+
+enum course_status {
+  Pending
+  Approved
+  Rejected
+}
+
+enum graded_by_type {
+  AI
+  Teacher
+}
+
+enum payment_status {
+  Pending
+  Paid
+  Failed
+}
+
+enum provider_type {
+  local
+  google
+}
+
+enum question_type {
+  MultipleChoice
+  TrueFalse
+  Essay
+}
+
+enum user_type {
+  Teacher
+  Student
+}
