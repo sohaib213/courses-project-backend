@@ -24,8 +24,12 @@ export class RegisterDto {
 
   @IsString()
   @MinLength(6)
-  password: string; // stored in local_credentials table
+  password: string;
 
   @IsString()
-  confirm_password: string; // stored in local_credentials table
+  confirm_password: string;
+
+  @IsOptional()
+  @IsString()
+  profilePicture?: string;
 }

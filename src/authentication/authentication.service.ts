@@ -8,6 +8,7 @@ import * as bcrypt from 'bcrypt';
 import { PrismaService } from 'prisma/prisma.service';
 import { EmailService } from './email.service';
 import { generateToken } from './utils/jwt.helpers';
+import { CloudinaryService } from 'src/cloudinary/cloudinary.service';
 
 export enum ProviderType {
   LOCAL = 'local',
@@ -22,9 +23,35 @@ export class AuthenticationService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly authEmailService: EmailService,
+    private cloudinaryService: CloudinaryService,
   ) {}
-  async Register(dto: RegisterDto) {
+  async Register(dto: RegisterDto, file?: Express.Multer.File) {
     const { email, password, confirm_password, type, username } = dto;
+
+    const existingUser = await this.prisma.users.findUnique({
+      where: {
+        email: email,
+      },
+    });
+
+    if (existingUser) {
+      throw new BadRequestException('User already exists');
+    }
+
+    // Upload profile picture if provided
+    let profilePictureUrl: string =
+      'https://res.cloudinary.com/dspfo4tsu/image/upload/v1758482809/pp-removebg-preview_ynlgkr.png';
+    if (file) {
+      try {
+        const result = await this.cloudinaryService.uploadFile(
+          file,
+          'users/profiles',
+        );
+        profilePictureUrl = result.secure_url;
+      } catch {
+        throw new BadRequestException('Failed to upload profile picture');
+      }
+    }
 
     if (password !== confirm_password) {
       throw new BadRequestException('Passwords do not match');
@@ -40,6 +67,7 @@ export class AuthenticationService {
         username: username || 'User',
         type: type,
         provider: ProviderType.LOCAL,
+        image: profilePictureUrl,
         local_credentials: {
           create: {
             password_hash: hashedPassword,
@@ -56,7 +84,14 @@ export class AuthenticationService {
     }
     await this.authEmailService.sendVerificationEmail(email, verifictionCode);
 
-    return newUser;
+    return {
+      id: newUser.id,
+      email,
+      username: newUser.username,
+      type,
+      image: profilePictureUrl,
+      provider: ProviderType.LOCAL,
+    };
   }
 
   getVerificationCode() {
@@ -117,4 +152,55 @@ export class AuthenticationService {
       access_token: token,
     };
   }
+  // signIn() {
+  //   const { email, password } = req.body;
+
+  //   const result = await prisma.users.findUnique({
+  //     where: { email: email },
+  //     include: { credentials: true },
+  //   });
+
+  //   if (!result) {
+  //     return next(
+  //       appError.create('Invalid email or password', 401, httpStatusText.FAIL),
+  //     );
+  //   }
+  //   const passwordMatch = await bcrypt.compare(
+  //     password,
+  //     result.credentials.password_hash,
+  //   );
+
+  //   if (!passwordMatch) {
+  //     return next(
+  //       appError.create('Invalid email or password', 401, httpStatusText.FAIL),
+  //     );
+  //   }
+
+  //   if (result.credentials.status !== 'active') {
+  //     const { expired_code_at, verifictionCode } = getVerificationCode();
+
+  //     await prisma.credentials.update({
+  //       where: { user_id: result.id },
+  //       data: {
+  //         verification_code: verifictionCode,
+  //         code_expires_at: expired_code_at,
+  //       },
+  //     });
+
+  //     await sendVerificationEmail(email, verifictionCode);
+  //     return next(
+  //       appError.create('Please Verify Email', 400, httpStatusText.FAIL),
+  //     );
+  //   }
+
+  //   const token = tokenMiddleware.generateToken(result);
+
+  //   return res.status(200).json({
+  //     status: httpStatusText.SUCCESS,
+  //     data: {
+  //       access_token: token,
+  //       // refresh_token: token
+  //     },
+  //   });
+  // }
 }
