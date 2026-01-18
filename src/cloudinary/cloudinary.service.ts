@@ -30,4 +30,35 @@ export class CloudinaryService {
       streamifier.createReadStream(file.buffer).pipe(uploadStream);
     });
   }
+  async deleteFile(publicId: string): Promise<any> {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      const result = await cloudinary.uploader.destroy(publicId);
+      return result;
+    } catch (error) {
+      const err =
+        error instanceof Error
+          ? error
+          : new Error(`Failed to delete file: ${JSON.stringify(error)}`);
+      throw err;
+    }
+  }
+
+  // Helper method to extract public_id from Cloudinary URL
+  extractPublicId(imageUrl: string): string {
+    const parts = imageUrl.split('/');
+    const uploadIndex = parts.indexOf('upload');
+
+    if (uploadIndex === -1) {
+      throw new Error('Invalid Cloudinary URL');
+    }
+
+    const publicIdWithExtension = parts.slice(uploadIndex + 2).join('/');
+    const publicId = publicIdWithExtension.substring(
+      0,
+      publicIdWithExtension.lastIndexOf('.'),
+    );
+
+    return publicId;
+  }
 }

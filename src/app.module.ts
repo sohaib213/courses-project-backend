@@ -5,6 +5,7 @@ import { AuthenticationModule } from './authentication/authentication.module';
 import { ConfigModule } from '@nestjs/config';
 import { PrismaModule } from 'prisma/prisma.module';
 import { CloudinaryModule } from './cloudinary/cloudinary.module';
+import { UsersModule } from './users/users.module';
 
 @Module({
   imports: [
@@ -12,6 +13,7 @@ import { CloudinaryModule } from './cloudinary/cloudinary.module';
     AuthenticationModule,
     PrismaModule,
     CloudinaryModule,
+    UsersModule,
   ],
   controllers: [AppController],
   providers: [AppService],

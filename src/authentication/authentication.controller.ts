@@ -11,6 +11,7 @@ import {
 import { AuthenticationService } from './authentication.service';
 import { RegisterDto } from './dto/register.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { LoginDto } from './dto/login.dto';
 
 @Controller('auth')
 export class AuthenticationController {
@@ -35,5 +36,9 @@ export class AuthenticationController {
   @Post('verify')
   verigyEmail(@Body() body: { email: string; code: string | number }) {
     return this.authenticationService.verifyEmail(body);
+  }
+  @Post('login')
+  login(@Body() body: LoginDto) {
+    return this.authenticationService.Login(body);
   }
 }

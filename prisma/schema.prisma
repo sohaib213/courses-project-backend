@@ -1,7 +1,8 @@
 generator client {
-  provider = "prisma-client-js"
+  provider   = "prisma-client-js"
   engineType = "binary"
 }
+
 datasource db {
   provider = "postgresql"
 }
@@ -188,7 +189,7 @@ model submissions {
 model users {
   id                Int                @id @default(autoincrement())
   email             String             @unique @db.VarChar(255)
-  username          String?            @db.VarChar(255)
+  username          String?            @unique(map: "unique_username") @db.VarChar(255)
   type              user_type
   image             String?            @db.VarChar(255)
   points            Int?               @default(0)

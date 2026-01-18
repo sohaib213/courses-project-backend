@@ -1,4 +1,5 @@
-import { IsEmail, IsString } from 'class-validator';
+import { Transform } from 'class-transformer';
+import { IsEmail, IsNotEmpty, IsString } from 'class-validator';
 
 export enum UserType {
   STUDENT = 'Student',
@@ -7,8 +8,21 @@ export enum UserType {
 
 export class LoginDto {
   @IsEmail({}, { message: 'Invalid email address' })
+  @IsNotEmpty()
   email: string;
 
   @IsString()
+  @IsNotEmpty()
+  @Transform(({ value }) => {
+    // Convert any type to string
+    if (typeof value === 'number') {
+      return value.toString();
+    }
+    if (typeof value === 'string') {
+      return value;
+    }
+    // Handle null, undefined, objects, etc.
+    return String(value);
+  })
   password: string;
 }
