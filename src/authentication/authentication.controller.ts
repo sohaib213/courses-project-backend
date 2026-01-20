@@ -14,6 +14,7 @@ import { AuthenticationService } from './authentication.service';
 import { RegisterDto } from './dto/register.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { LoginDto } from './dto/login.dto';
+import { ResetPasswordDto } from './dto/resetPassword.dto';
 
 @Controller('auth')
 export class AuthenticationController {
@@ -43,5 +44,17 @@ export class AuthenticationController {
   @HttpCode(HttpStatus.OK)
   login(@Body() body: LoginDto) {
     return this.authenticationService.Login(body);
+  }
+  @Post('request-password-reset')
+  requestPasswordReset(@Body() body: { email: string }) {
+    return this.authenticationService.resetPasswordRequest(body.email);
+  }
+  @Post('verify-reset-code')
+  verifyResetCode(@Body() body: { email: string; code: string | number }) {
+    return this.authenticationService.checkPasswordResetCode(body);
+  }
+  @Post('reset-password')
+  async resetPassword(@Body() body: ResetPasswordDto) {
+    return this.authenticationService.resetPassword(body);
   }
 }

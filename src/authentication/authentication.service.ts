@@ -1,8 +1,10 @@
 import {
   BadRequestException,
   ConflictException,
+  HttpException,
   Injectable,
   InternalServerErrorException,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { RegisterDto } from './dto/register.dto';
@@ -16,6 +18,7 @@ import { JwtService } from '@nestjs/jwt';
 import { users } from '@prisma/client';
 import { JwtPayload } from 'jsonwebtoken';
 import { ProfilePictureUrl } from 'src/common/assets/UserProfilePic';
+import { ResetPasswordDto } from './dto/resetPassword.dto';
 
 export enum ProviderType {
   LOCAL = 'local',
@@ -33,6 +36,7 @@ export class AuthenticationService {
     private cloudinaryService: CloudinaryService,
     private jwtService: JwtService,
   ) {}
+
   async Register(dto: RegisterDto, file?: Express.Multer.File) {
     const { email, password, confirm_password, type } = dto;
 
@@ -123,14 +127,6 @@ export class AuthenticationService {
     };
   }
 
-  getVerificationCode() {
-    const verifictionCode = Math.floor(
-      100000 + Math.random() * 900000,
-    ).toString();
-    const expired_code_at = new Date(Date.now() + 10 * 60 * 1000);
-
-    return { verifictionCode, expired_code_at };
-  }
   async verifyEmail(body: { email: string; code: string | number }) {
     const { email, code } = body;
 
@@ -177,6 +173,7 @@ export class AuthenticationService {
 
     return { token: await this.generateToken(user) };
   }
+
   async Login(dto: LoginDto) {
     const { email, password } = dto;
 
@@ -218,6 +215,124 @@ export class AuthenticationService {
     return { token: await this.generateToken(user) };
   }
 
+  async resetPasswordRequest(email: string) {
+    const user = await this.prisma.users.findUnique({
+      where: { email },
+      include: {
+        local_credentials: true,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (!user.local_credentials || !user.local_credentials.email_verified) {
+      throw new HttpException('User not found or inactive', 404);
+    }
+
+    const { expired_code_at, verifictionCode: reset_code } =
+      this.getVerificationCode();
+    await this.authEmailService.sendResetPasswordEmail(email, reset_code);
+
+    const updated = await this.prisma.local_credentials.update({
+      where: { user_id: user.id },
+      data: {
+        verification_code: reset_code,
+        verification_code_expires_at: expired_code_at,
+      },
+    });
+
+    if (!updated) {
+      throw new InternalServerErrorException('Failed to set reset token');
+    }
+    return 'Reset password email sent';
+  }
+
+  async checkPasswordResetCode({
+    email,
+    code,
+  }: {
+    email: string;
+    code: string | number;
+  }) {
+    const user = await this.prisma.users.findUnique({
+      where: { email },
+      include: {
+        local_credentials: true,
+      },
+    });
+
+    if (!user || !user.local_credentials) {
+      throw new NotFoundException('User not found');
+    }
+
+    const credential = user.local_credentials;
+    if (
+      credential.verification_code !== String(code) ||
+      !(
+        credential.verification_code_expires_at &&
+        credential.verification_code_expires_at.getTime() > new Date().getTime()
+      )
+    ) {
+      throw new BadRequestException('Invalid or expired code');
+    }
+
+    await this.prisma.local_credentials.update({
+      where: { user_id: user.id },
+      data: {
+        verification_code_expires_at: null,
+        reset_verified: true,
+      },
+    });
+    return { message: 'Valid reset code' };
+  }
+
+  async resetPassword(body: ResetPasswordDto) {
+    const { email, new_password, confirm_password, code } = body;
+
+    if (new_password !== confirm_password) {
+      throw new BadRequestException('Passwords do not match');
+    }
+
+    const user = await this.prisma.users.findUnique({
+      where: { email },
+      include: {
+        local_credentials: true,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const credential = user.local_credentials;
+    if (!credential || !credential.reset_verified) {
+      throw new BadRequestException('Password reset not verified');
+    }
+
+    if (credential.verification_code !== String(code)) {
+      throw new BadRequestException('Invalid reset code');
+    }
+
+    const hashedPassword = await bcrypt.hash(new_password, this.saltOrRounds);
+
+    try {
+      await this.prisma.local_credentials.update({
+        where: { user_id: user.id },
+        data: {
+          password_hash: hashedPassword,
+          reset_verified: false,
+          verification_code: null,
+        },
+      });
+    } catch {
+      throw new InternalServerErrorException('Failed to reset password');
+    }
+
+    return 'Password has been reset successfully';
+  }
+
   async generateToken(user: users) {
     const payload: JwtPayload = {
       id: user.id,
@@ -227,5 +342,14 @@ export class AuthenticationService {
     };
     const token = await this.jwtService.signAsync(payload);
     return token;
+  }
+
+  getVerificationCode() {
+    const verifictionCode = Math.floor(
+      100000 + Math.random() * 900000,
+    ).toString();
+    const expired_code_at = new Date(Date.now() + 10 * 60 * 1000);
+
+    return { verifictionCode, expired_code_at };
   }
 }
