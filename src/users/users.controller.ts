@@ -13,7 +13,7 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
-import { AuthGuard } from 'src/authentication/authentication.guard';
+import { AuthGuard } from 'src/authentication/gurards/authentication.guard';
 import { FileInterceptor } from '@nestjs/platform-express';
 
 @Controller('users')

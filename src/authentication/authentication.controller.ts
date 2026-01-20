@@ -2,12 +2,17 @@ import {
   Body,
   Controller,
   FileTypeValidator,
+  Get,
   HttpCode,
   HttpStatus,
   MaxFileSizeValidator,
   ParseFilePipe,
+  Patch,
   Post,
+  Req,
+  Res,
   UploadedFile,
+  UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { AuthenticationService } from './authentication.service';
@@ -15,6 +20,9 @@ import { RegisterDto } from './dto/register.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { LoginDto } from './dto/login.dto';
 import { ResetPasswordDto } from './dto/resetPassword.dto';
+import { GoogleAuthGuard } from './gurards/google-auth.guard';
+import type { Response } from 'express';
+import { CompleteProfileDto } from './dto/complete_profile.dto';
 
 @Controller('auth')
 export class AuthenticationController {
@@ -56,5 +64,35 @@ export class AuthenticationController {
   @Post('reset-password')
   async resetPassword(@Body() body: ResetPasswordDto) {
     return this.authenticationService.resetPassword(body);
+  }
+  @UseGuards(GoogleAuthGuard)
+  @Get('google/login')
+  googleLogin() {}
+
+  @UseGuards(GoogleAuthGuard)
+  @Get('google/callback')
+  async googleAuthRedirect(@Req() req, @Res() res: Response) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access
+    const result = await this.authenticationService.googleCallback(req.user);
+
+    console.log('result => ', result);
+    console.log(
+      'Redirictiong to ',
+      `${process.env.FRONTEND_URL}/complete-profile?userId=${result.userId}`,
+    );
+    if (result.requiresProfileCompletion) {
+      return res.redirect(
+        `${process.env.FRONTEND_URL}/complete-profile?userId=${result.userId}`,
+      );
+    }
+
+    return res.redirect(
+      `${process.env.FRONTEND_URL}/auth/success?token=${result.accessToken}`,
+    );
+  }
+
+  @Patch('complete-profile')
+  async completeProfile(@Body() dto: CompleteProfileDto) {
+    return this.authenticationService.completeProfile(dto);
   }
 }

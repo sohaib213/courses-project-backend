@@ -19,6 +19,7 @@ import { users } from '@prisma/client';
 import { JwtPayload } from 'jsonwebtoken';
 import { ProfilePictureUrl } from 'src/common/assets/UserProfilePic';
 import { ResetPasswordDto } from './dto/resetPassword.dto';
+import { CompleteProfileDto } from './dto/complete_profile.dto';
 
 export enum ProviderType {
   LOCAL = 'local',
@@ -75,13 +76,7 @@ export class AuthenticationService {
 
     let username = dto.username;
     if (!username) {
-      // Get next sequence value
-      const result = await this.prisma.$queryRaw<
-        Array<{
-          nextval: number;
-        }>
-      >`SELECT nextval('username_seq')`;
-      username = `user${result[0].nextval}`;
+      username = await this.generateUsername();
     }
     let newUser;
     try {
@@ -344,6 +339,57 @@ export class AuthenticationService {
     return token;
   }
 
+  async googleCallback(user: users) {
+    if (!user.isprofilecomplete) {
+      return {
+        requiresProfileCompletion: true,
+        userId: user.id,
+        email: user.email,
+      };
+    }
+
+    return {
+      requiresProfileCompletion: false,
+      accessToken: await this.generateToken(user),
+      user: {
+        id: user.id,
+        email: user.email,
+        username: user.username,
+        userType: user.type,
+      },
+    };
+  }
+
+  async completeProfile(dto: CompleteProfileDto) {
+    const { id, type } = dto;
+    const existingUser = await this.prisma.users.findUnique({
+      where: { id },
+    });
+
+    if (!existingUser) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (existingUser.isprofilecomplete) {
+      throw new BadRequestException('Profile already completed');
+    }
+    let username = dto.username;
+
+    if (!username) username = await this.generateUsername();
+    const user = await this.prisma.users.update({
+      where: { id },
+      data: {
+        type,
+        username,
+        isprofilecomplete: true,
+      },
+    });
+
+    return {
+      token: await this.generateToken(user),
+    };
+  }
+
   getVerificationCode() {
     const verifictionCode = Math.floor(
       100000 + Math.random() * 900000,
@@ -351,5 +397,15 @@ export class AuthenticationService {
     const expired_code_at = new Date(Date.now() + 10 * 60 * 1000);
 
     return { verifictionCode, expired_code_at };
+  }
+
+  async generateUsername() {
+    // Get next sequence value
+    const result = await this.prisma.$queryRaw<
+      Array<{
+        nextval: number;
+      }>
+    >`SELECT nextval('username_seq')`;
+    return `user${result[0].nextval}`;
   }
 }

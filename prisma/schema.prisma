@@ -196,6 +196,7 @@ model users {
   points            Int?               @default(0)
   provider          provider_type
   createdat         DateTime?          @default(now()) @db.Timestamp(6)
+  isprofilecomplete Boolean?           @default(false)
   carts             carts[]
   courses           courses[]
   enrollments       enrollments[]

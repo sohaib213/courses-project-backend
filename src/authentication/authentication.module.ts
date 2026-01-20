@@ -3,9 +3,11 @@ import { AuthenticationService } from './authentication.service';
 import { AuthenticationController } from './authentication.controller';
 import { EmailService } from './email.service';
 import { CloudinaryModule } from '../cloudinary/cloudinary.module';
-import { AuthGuard } from './authentication.guard';
+import { AuthGuard } from './gurards/authentication.guard';
 import { JwtModule } from '@nestjs/jwt';
-import { ConfigService } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import googleOauthConfig from './config/google-oauth.config';
+import { GoogleStrategy } from './strategies/google.strategy';
 
 @Module({
   imports: [
@@ -17,9 +19,10 @@ import { ConfigService } from '@nestjs/config';
       }),
       inject: [ConfigService],
     }),
+    ConfigModule.forFeature(googleOauthConfig),
   ],
   controllers: [AuthenticationController],
-  providers: [AuthenticationService, EmailService, AuthGuard],
+  providers: [AuthenticationService, EmailService, AuthGuard, GoogleStrategy],
   exports: [JwtModule],
 })
 export class AuthenticationModule {}
