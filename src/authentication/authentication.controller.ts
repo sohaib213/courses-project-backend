@@ -2,6 +2,8 @@ import {
   Body,
   Controller,
   FileTypeValidator,
+  HttpCode,
+  HttpStatus,
   MaxFileSizeValidator,
   ParseFilePipe,
   Post,
@@ -38,6 +40,7 @@ export class AuthenticationController {
     return this.authenticationService.verifyEmail(body);
   }
   @Post('login')
+  @HttpCode(HttpStatus.OK)
   login(@Body() body: LoginDto) {
     return this.authenticationService.Login(body);
   }

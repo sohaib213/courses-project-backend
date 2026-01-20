@@ -9,10 +9,13 @@ import { RegisterDto } from './dto/register.dto';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from 'prisma/prisma.service';
 import { EmailService } from './email.service';
-import { generateToken } from './utils/jwt.helpers';
 import { CloudinaryService } from 'src/cloudinary/cloudinary.service';
 import { LoginDto } from './dto/login.dto';
 import { Prisma } from '@prisma/client';
+import { JwtService } from '@nestjs/jwt';
+import { users } from '@prisma/client';
+import { JwtPayload } from 'jsonwebtoken';
+import { ProfilePictureUrl } from 'src/common/assets/UserProfilePic';
 
 export enum ProviderType {
   LOCAL = 'local',
@@ -28,10 +31,12 @@ export class AuthenticationService {
     private readonly prisma: PrismaService,
     private readonly authEmailService: EmailService,
     private cloudinaryService: CloudinaryService,
+    private jwtService: JwtService,
   ) {}
   async Register(dto: RegisterDto, file?: Express.Multer.File) {
     const { email, password, confirm_password, type } = dto;
 
+    console.log('Profile Picture', dto.profilePicture);
     const existingUser = await this.prisma.users.findUnique({
       where: {
         email: email,
@@ -43,8 +48,7 @@ export class AuthenticationService {
     }
 
     // Upload profile picture if provided
-    let profilePictureUrl: string =
-      'https://res.cloudinary.com/dspfo4tsu/image/upload/v1758482809/pp-removebg-preview_ynlgkr.png';
+    let profilePictureUrl: string = ProfilePictureUrl;
     if (file) {
       try {
         const result = await this.cloudinaryService.uploadFile(
@@ -171,11 +175,7 @@ export class AuthenticationService {
       },
     });
 
-    const token = generateToken(user);
-
-    return {
-      access_token: token,
-    };
+    return { token: await this.generateToken(user) };
   }
   async Login(dto: LoginDto) {
     const { email, password } = dto;
@@ -215,8 +215,17 @@ export class AuthenticationService {
       throw new UnauthorizedException('Please Verify Email');
     }
 
-    const token = generateToken(user);
+    return { token: await this.generateToken(user) };
+  }
 
-    return { token };
+  async generateToken(user: users) {
+    const payload: JwtPayload = {
+      id: user.id,
+      email: user.email,
+      username: user.username,
+      type: user.type,
+    };
+    const token = await this.jwtService.signAsync(payload);
+    return token;
   }
 }
