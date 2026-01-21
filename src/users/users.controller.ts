@@ -6,15 +6,13 @@ import {
   UseGuards,
   Query,
   UploadedFile,
-  ParseFilePipe,
-  MaxFileSizeValidator,
-  FileTypeValidator,
   Request,
   UseInterceptors,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { AuthGuard } from 'src/authentication/gurards/authentication.guard';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { ImageFilePipe } from 'src/common/pipes/image-file.pipe';
 
 @Controller('users')
 export class UsersController {
@@ -53,15 +51,7 @@ export class UsersController {
   update(
     @Request()
     req,
-    @UploadedFile(
-      new ParseFilePipe({
-        validators: [
-          new MaxFileSizeValidator({ maxSize: 5 * 1024 * 1024 }), // 5MB
-          new FileTypeValidator({ fileType: /^image\/(jpeg|jpg|png|webp)$/ }),
-        ],
-        fileIsRequired: false,
-      }),
-    )
+    @UploadedFile(new ImageFilePipe(true))
     file?: Express.Multer.File,
   ) {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access

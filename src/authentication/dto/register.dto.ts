@@ -28,8 +28,4 @@ export class RegisterDto {
 
   @IsString()
   confirm_password: string;
-
-  @IsOptional()
-  @IsString()
-  profilePicture?: string;
 }

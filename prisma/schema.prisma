@@ -55,7 +55,6 @@ model courses {
   description        String?
   teacher_id         String?            @db.Uuid
   category_id        String?            @db.Uuid
-  is_published       Boolean?           @default(false)
   thumbnail_url      String?            @db.VarChar(255)
   difficulty         course_difficulty?
   price              Decimal?           @db.Decimal(10, 2)

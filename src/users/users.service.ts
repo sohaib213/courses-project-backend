@@ -65,12 +65,7 @@ export class UsersService {
 
     if (!currentUser) throw new NotFoundException('User with id not found');
 
-    const oldPublicId = (currentUser.image = this.extractPublicId(
-      currentUser.image,
-    ));
-
-    let profilePictureUrl: string = ProfilePictureUrl;
-    console.log(file);
+    let profilePictureUrl: string = currentUser.image;
     if (file) {
       try {
         const result = await this.cloudinaryService.uploadFile(
@@ -89,6 +84,9 @@ export class UsersService {
       select: this.userPublicProberties,
     });
 
+    const oldPublicId = this.cloudinaryService.extractPublicId(
+      currentUser.image,
+    );
     if (oldPublicId) {
       this.cloudinaryService.deleteFile(oldPublicId).catch(() => {
         console.error(`Failed to delete old image: ${oldPublicId}`);
@@ -98,31 +96,6 @@ export class UsersService {
     return updatedUser;
   }
 
-  extractPublicId(imageUrl: string): string | null {
-    // https://res.cloudinary.com/dspfo4tsu/image/upload/v1768723965/users/profiles/ydlkmhklfscu4auerm7a.png
-    try {
-      const urlParts = imageUrl.split('/upload/');
-      if (urlParts.length < 2) {
-        console.warn(`Invalid Cloudinary URL format: ${imageUrl}`);
-        return null;
-      }
-
-      // Get everything after '/upload/' → "v1768723965/users/profiles/ydlkmhklfscu4auerm7a.png"
-      let pathAfterUpload = urlParts[1];
-
-      // Remove version prefix (v1768723965/) → "users/profiles/ydlkmhklfscu4auerm7a.png"
-      pathAfterUpload = pathAfterUpload.replace(/^v\d+\//, '');
-
-      // Remove file extension (.png) → "users/profiles/ydlkmhklfscu4auerm7a"
-      const publicId = pathAfterUpload.replace(/\.[^/.]+$/, '');
-
-      console.log('public id: ', publicId);
-      return publicId;
-    } catch (error) {
-      console.error(`Failed to extract public ID from URL: ${imageUrl}`, error);
-      return null;
-    }
-  }
   remove(id: string) {
     return `This action removes a #${id} user`;
   }

@@ -1,12 +1,9 @@
 import {
   Body,
   Controller,
-  FileTypeValidator,
   Get,
   HttpCode,
   HttpStatus,
-  MaxFileSizeValidator,
-  ParseFilePipe,
   Patch,
   Post,
   Req,
@@ -23,6 +20,7 @@ import { ResetPasswordDto } from './dto/resetPassword.dto';
 import { GoogleAuthGuard } from './gurards/google-auth.guard';
 import type { Response } from 'express';
 import { CompleteProfileDto } from './dto/complete_profile.dto';
+import { ImageFilePipe } from 'src/common/pipes/image-file.pipe';
 
 @Controller('auth')
 export class AuthenticationController {
@@ -31,15 +29,7 @@ export class AuthenticationController {
   @UseInterceptors(FileInterceptor('profilePicture'))
   register(
     @Body() registerDto: RegisterDto,
-    @UploadedFile(
-      new ParseFilePipe({
-        validators: [
-          new MaxFileSizeValidator({ maxSize: 5 * 1024 * 1024 }), // 5MB
-          new FileTypeValidator({ fileType: /^image\/(jpeg|jpg|png|webp)$/ }),
-        ],
-        fileIsRequired: false,
-      }),
-    )
+    @UploadedFile(new ImageFilePipe(false))
     file?: Express.Multer.File,
   ) {
     return this.authenticationService.Register(registerDto, file);
@@ -78,11 +68,6 @@ export class AuthenticationController {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access
     const result = await this.authenticationService.googleCallback(req.user);
 
-    console.log('result => ', result);
-    console.log(
-      'Redirictiong to ',
-      `${process.env.FRONTEND_URL}/complete-profile?userId=${result.userId}`,
-    );
     if (result.requiresProfileCompletion) {
       return res.redirect(
         `${process.env.FRONTEND_URL}/complete-profile?userId=${result.userId}`,

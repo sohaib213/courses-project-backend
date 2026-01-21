@@ -6,6 +6,8 @@ import { ConfigModule } from '@nestjs/config';
 import { PrismaModule } from 'prisma/prisma.module';
 import { CloudinaryModule } from './cloudinary/cloudinary.module';
 import { UsersModule } from './users/users.module';
+import { CoursesModule } from './courses/courses.module';
+import { CategoriesModule } from './categories/categories.module';
 
 @Module({
   imports: [
@@ -14,6 +16,8 @@ import { UsersModule } from './users/users.module';
     PrismaModule,
     CloudinaryModule,
     UsersModule,
+    CoursesModule,
+    CategoriesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

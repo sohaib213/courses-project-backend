@@ -179,6 +179,9 @@ export class AuthenticationService {
       where: { user_id: user.id },
     });
 
+    if (!credentials) {
+      throw new BadRequestException('Login with google');
+    }
     const passwordMatch = await bcrypt.compare(
       password,
       credentials.password_hash,

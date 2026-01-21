@@ -6,7 +6,7 @@ import * as streamifier from 'streamifier';
 export class CloudinaryService {
   async uploadFile(
     file: Express.Multer.File,
-    folder: string = 'users',
+    folder: string,
   ): Promise<UploadApiResponse> {
     return new Promise((resolve, reject) => {
       const uploadStream = cloudinary.uploader.upload_stream(
@@ -44,21 +44,28 @@ export class CloudinaryService {
     }
   }
 
-  // Helper method to extract public_id from Cloudinary URL
   extractPublicId(imageUrl: string): string {
-    const parts = imageUrl.split('/');
-    const uploadIndex = parts.indexOf('upload');
+    // https://res.cloudinary.com/dspfo4tsu/image/upload/v1768723965/users/profiles/ydlkmhklfscu4auerm7a.png
+    try {
+      const urlParts = imageUrl.split('/upload/');
+      if (urlParts.length < 2) {
+        console.warn(`Invalid Cloudinary URL format: ${imageUrl}`);
+        return null;
+      }
 
-    if (uploadIndex === -1) {
-      throw new Error('Invalid Cloudinary URL');
+      // Get everything after '/upload/' → "v1768723965/users/profiles/ydlkmhklfscu4auerm7a.png"
+      let pathAfterUpload = urlParts[1];
+
+      // Remove version prefix (v1768723965/) → "users/profiles/ydlkmhklfscu4auerm7a.png"
+      pathAfterUpload = pathAfterUpload.replace(/^v\d+\//, '');
+
+      // Remove file extension (.png) → "users/profiles/ydlkmhklfscu4auerm7a"
+      const publicId = pathAfterUpload.replace(/\.[^/.]+$/, '');
+
+      return publicId;
+    } catch (error) {
+      console.error(`Failed to extract public ID from URL: ${imageUrl}`, error);
+      return null;
     }
-
-    const publicIdWithExtension = parts.slice(uploadIndex + 2).join('/');
-    const publicId = publicIdWithExtension.substring(
-      0,
-      publicIdWithExtension.lastIndexOf('.'),
-    );
-
-    return publicId;
   }
 }

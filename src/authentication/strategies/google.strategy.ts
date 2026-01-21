@@ -1,5 +1,5 @@
 import { Profile, Strategy } from 'passport-google-oauth20';
-import { Inject, Injectable } from '@nestjs/common';
+import { ConflictException, Inject, Injectable } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import googleOauthConfig from '../config/google-oauth.config';
 import type { ConfigType } from '@nestjs/config';
@@ -42,6 +42,11 @@ export class GoogleStrategy extends PassportStrategy(Strategy) {
       });
     }
 
+    if (user && user.provider !== 'google') {
+      throw new ConflictException(
+        `An account with this email already exists using ${user.provider} provider. Please sign in with ${user.provider} instead.`,
+      );
+    }
     return user;
   }
 }
