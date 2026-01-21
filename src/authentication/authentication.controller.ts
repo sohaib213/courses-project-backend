@@ -45,6 +45,7 @@ export class AuthenticationController {
     return this.authenticationService.Register(registerDto, file);
   }
   @Post('verify')
+  @HttpCode(HttpStatus.OK)
   verigyEmail(@Body() body: { email: string; code: string | number }) {
     return this.authenticationService.verifyEmail(body);
   }
@@ -58,10 +59,12 @@ export class AuthenticationController {
     return this.authenticationService.resetPasswordRequest(body.email);
   }
   @Post('verify-reset-code')
+  @HttpCode(HttpStatus.OK)
   verifyResetCode(@Body() body: { email: string; code: string | number }) {
     return this.authenticationService.checkPasswordResetCode(body);
   }
   @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
   async resetPassword(@Body() body: ResetPasswordDto) {
     return this.authenticationService.resetPassword(body);
   }

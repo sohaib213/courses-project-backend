@@ -8,9 +8,9 @@ datasource db {
 }
 
 model answers {
-  id             Int             @id @default(autoincrement())
-  submission_id  Int?
-  question_id    Int?
+  id             String          @id @default(uuid()) @db.Uuid
+  submission_id  String?         @db.Uuid
+  question_id    String?         @db.Uuid
   graded_by      graded_by_type?
   graded_at      DateTime?       @db.Timestamp(6)
   questions      questions?      @relation(fields: [question_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
@@ -23,9 +23,9 @@ model answers {
 }
 
 model cart_items {
-  id            Int      @id @default(autoincrement())
-  cart_id       Int?
-  course_id     Int?
+  id            String   @id @default(uuid()) @db.Uuid
+  cart_id       String?  @db.Uuid
+  course_id     String?  @db.Uuid
   price_at_time Decimal  @db.Decimal(10, 2)
   carts         carts?   @relation(fields: [cart_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   courses       courses? @relation(fields: [course_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
@@ -35,8 +35,8 @@ model cart_items {
 }
 
 model carts {
-  id         Int          @id @default(autoincrement())
-  user_id    Int?
+  id         String       @id @default(uuid()) @db.Uuid
+  user_id    String?      @db.Uuid
   status     cart_status? @default(Active)
   cart_items cart_items[]
   users      users?       @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "carts_student_id_fkey")
@@ -44,17 +44,17 @@ model carts {
 }
 
 model categories {
-  id      Int       @id @default(autoincrement())
+  id      String    @id @default(uuid()) @db.Uuid
   name    String    @unique @db.VarChar(255)
   courses courses[]
 }
 
 model courses {
-  id                 Int                @id @default(autoincrement())
+  id                 String             @id @default(uuid()) @db.Uuid
   title              String             @db.VarChar(255)
   description        String?
-  teacher_id         Int?
-  category_id        Int?
+  teacher_id         String?            @db.Uuid
+  category_id        String?            @db.Uuid
   is_published       Boolean?           @default(false)
   thumbnail_url      String?            @db.VarChar(255)
   difficulty         course_difficulty?
@@ -72,9 +72,9 @@ model courses {
 }
 
 model enrollments {
-  id                   Int       @id @default(autoincrement())
-  student_id           Int?
-  course_id            Int?
+  id                   String    @id @default(uuid()) @db.Uuid
+  student_id           String?   @db.Uuid
+  course_id            String?   @db.Uuid
   current_lesson_order Int?      @default(1)
   completed            Boolean?  @default(false)
   enrolledat           DateTime? @default(now()) @db.Timestamp(6)
@@ -86,7 +86,7 @@ model enrollments {
 }
 
 model essay_answers {
-  answer_id        Int     @id
+  answer_id        String  @id @db.Uuid
   answer_text      String?
   ai_score         Int?
   ai_feedback      String?
@@ -95,8 +95,8 @@ model essay_answers {
 }
 
 model lessons {
-  id           Int           @id @default(autoincrement())
-  course_id    Int?
+  id           String        @id @default(uuid()) @db.Uuid
+  course_id    String?       @db.Uuid
   title        String        @db.VarChar(255)
   order_number Int
   content_type content_type
@@ -111,7 +111,7 @@ model lessons {
 }
 
 model local_credentials {
-  user_id                      Int       @id
+  user_id                      String    @id @db.Uuid
   password_hash                String    @db.VarChar(255)
   verification_code            String?   @db.VarChar(255)
   verification_code_expires_at DateTime? @db.Timestamp(6)
@@ -121,16 +121,16 @@ model local_credentials {
 }
 
 model mcq_tf_answers {
-  answer_id          Int      @id
-  selected_option_id Int?
+  answer_id          String   @id @db.Uuid
+  selected_option_id String?  @db.Uuid
   answers            answers  @relation(fields: [answer_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   options            options? @relation(fields: [selected_option_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
 
 model messages {
-  id        Int       @id @default(autoincrement())
-  course_id Int?
-  sender_id Int?
+  id        String    @id @default(uuid()) @db.Uuid
+  course_id String?   @db.Uuid
+  sender_id String?   @db.Uuid
   content   String?
   createdat DateTime? @default(now()) @db.Timestamp(6)
   courses   courses?  @relation(fields: [course_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
@@ -140,8 +140,8 @@ model messages {
 }
 
 model options {
-  id             Int              @id @default(autoincrement())
-  question_id    Int?
+  id             String           @id @default(uuid()) @db.Uuid
+  question_id    String?          @db.Uuid
   option_text    String?
   is_correct     Boolean?         @default(false)
   mcq_tf_answers mcq_tf_answers[]
@@ -151,8 +151,8 @@ model options {
 }
 
 model payments {
-  id      Int             @id @default(autoincrement())
-  cart_id Int?            @unique
+  id      String          @id @default(uuid()) @db.Uuid
+  cart_id String?         @unique @db.Uuid
   amount  Decimal         @db.Decimal(10, 2)
   status  payment_status? @default(Pending)
   paid_at DateTime?       @db.Timestamp(6)
@@ -162,8 +162,8 @@ model payments {
 }
 
 model questions {
-  id            Int            @id @default(autoincrement())
-  lesson_id     Int?
+  id            String         @id @default(uuid()) @db.Uuid
+  lesson_id     String?        @db.Uuid
   question_text String?        @db.VarChar(255)
   question_type question_type?
   model_answer  String?
@@ -175,9 +175,9 @@ model questions {
 }
 
 model submissions {
-  id          Int       @id @default(autoincrement())
-  lesson_id   Int?
-  student_id  Int?
+  id          String    @id @default(uuid()) @db.Uuid
+  lesson_id   String?   @db.Uuid
+  student_id  String?   @db.Uuid
   submittedat DateTime? @default(now()) @db.Timestamp(6)
   grade       Int?
   answers     answers[]
@@ -188,7 +188,7 @@ model submissions {
 }
 
 model users {
-  id                Int                @id @default(autoincrement())
+  id                String             @id @default(uuid()) @db.Uuid
   email             String             @unique @db.VarChar(255)
   username          String?            @unique(map: "unique_username") @db.VarChar(255)
   type              user_type

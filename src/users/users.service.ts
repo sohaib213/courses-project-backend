@@ -19,7 +19,7 @@ export class UsersService {
     });
   }
 
-  async findOne(filter: { id?: number; email?: string; username?: string }) {
+  async findOne(filter: { id?: string; email?: string; username?: string }) {
     if (!filter.id && !filter.email && !filter.username) {
       throw new BadRequestException('ID, email, or username is required');
     }
@@ -57,7 +57,7 @@ export class UsersService {
     return user;
   }
 
-  async update(id: number, file?: Express.Multer.File) {
+  async update(id: string, file?: Express.Multer.File) {
     const currentUser: { image: string } = await this.prisma.users.findUnique({
       where: { id },
       select: { image: true },
@@ -123,7 +123,7 @@ export class UsersService {
       return null;
     }
   }
-  remove(id: number) {
+  remove(id: string) {
     return `This action removes a #${id} user`;
   }
   userPublicProberties = {

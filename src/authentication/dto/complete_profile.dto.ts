@@ -1,6 +1,5 @@
 import { IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 import { UserType } from './register.dto';
-import { Type } from 'class-transformer';
 
 export class CompleteProfileDto {
   @IsString()
@@ -10,7 +9,7 @@ export class CompleteProfileDto {
   @IsEnum(UserType)
   type: UserType;
 
+  @IsString()
   @IsNotEmpty()
-  @Type(() => Number)
-  id: number;
+  id: string;
 }

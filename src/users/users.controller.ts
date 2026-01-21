@@ -26,7 +26,7 @@ export class UsersController {
     @Query('username') username?: string,
     @Query('id') id?: string,
   ) {
-    const filter: { email?: string; username?: string; id?: number } = {};
+    const filter: { email?: string; username?: string; id?: string } = {};
 
     if (email) {
       filter.email = email;
@@ -37,7 +37,7 @@ export class UsersController {
     }
 
     if (id) {
-      filter.id = +id;
+      filter.id = id;
     }
     // If filter is empty, return all users, otherwise find one
     if (Object.keys(filter).length === 0) {
@@ -64,8 +64,7 @@ export class UsersController {
     )
     file?: Express.Multer.File,
   ) {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
-    const id = req.currentUser.id;
-    return this.usersService.update(+id, file);
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access
+    return this.usersService.update(req.currentUser.id, file);
   }
 }

@@ -24,7 +24,6 @@ import { CompleteProfileDto } from './dto/complete_profile.dto';
 export enum ProviderType {
   LOCAL = 'local',
   GOOGLE = 'google',
-  // add other providers if needed
 }
 
 @Injectable()
@@ -41,7 +40,6 @@ export class AuthenticationService {
   async Register(dto: RegisterDto, file?: Express.Multer.File) {
     const { email, password, confirm_password, type } = dto;
 
-    console.log('Profile Picture', dto.profilePicture);
     const existingUser = await this.prisma.users.findUnique({
       where: {
         email: email,
@@ -52,7 +50,6 @@ export class AuthenticationService {
       throw new ConflictException('User already exists');
     }
 
-    // Upload profile picture if provided
     let profilePictureUrl: string = ProfilePictureUrl;
     if (file) {
       try {
@@ -107,7 +104,6 @@ export class AuthenticationService {
         throw new InternalServerErrorException('Failed to create user');
       }
     }
-
     await this.authEmailService.sendVerificationEmail(email, verifictionCode);
 
     return {
