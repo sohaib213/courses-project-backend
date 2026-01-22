@@ -1,8 +1,14 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { CreateCourseDto } from './dto/create-course.dto';
 import { UpdateCourseDto } from './dto/update-course.dto';
 import { CloudinaryService } from 'src/cloudinary/cloudinary.service';
 import { PrismaService } from 'prisma/prisma.service';
+import { course_status } from '@prisma/client';
+import { FindCoursesQuery } from 'src/common/interfaces/findCoursesQuerry';
 
 @Injectable()
 export class CoursesService {
@@ -46,12 +52,29 @@ export class CoursesService {
     }
   }
 
-  findAll() {
-    return this.prisma.courses.findMany();
+  async findAll(querry: FindCoursesQuery) {
+    let { page, limit } = querry;
+    const { teacher_id, category_id } = querry;
+
+    page = page && page > 0 ? page : 1;
+    limit = limit && limit > 0 ? limit : 10;
+    const skip = (page - 1) * limit;
+    return await this.prisma.courses.findMany({
+      where: {
+        teacher_id,
+        category_id,
+      },
+      skip,
+      take: limit,
+    });
   }
 
-  findOne(id: string) {
-    return `This action returns a #${id} course`;
+  async findOne(id: string) {
+    const course = await this.prisma.courses.findUnique({ where: { id } });
+    if (!course) {
+      throw new BadRequestException('Course not found');
+    }
+    return course;
   }
 
   async update(
@@ -65,7 +88,7 @@ export class CoursesService {
       throw new BadRequestException('Course not found');
     }
     if (teacher_id !== course.teacher_id) {
-      throw new BadRequestException(
+      throw new UnauthorizedException(
         'You are not authorized to update this course',
       );
     }
@@ -117,7 +140,23 @@ export class CoursesService {
     }
   }
 
-  remove(id: string) {
-    return `This action removes a #${id} course`;
+  // admin only
+  async remove(id: string) {
+    await this.prisma.courses.delete({ where: { id } });
+    return `course ${id} removed`;
+  }
+
+  // admin only
+  async updateCourseStatus(id: string, status: course_status) {
+    try {
+      const updatedCourse = await this.prisma.courses.update({
+        where: { id },
+        data: { status },
+      });
+      return updatedCourse;
+    } catch (error) {
+      console.error(error);
+      throw new BadRequestException('Failed to update course status');
+    }
   }
 }

@@ -8,6 +8,7 @@ import { CloudinaryModule } from './cloudinary/cloudinary.module';
 import { UsersModule } from './users/users.module';
 import { CoursesModule } from './courses/courses.module';
 import { CategoriesModule } from './categories/categories.module';
+import { LessonsModule } from './lessons/lessons.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { CategoriesModule } from './categories/categories.module';
     UsersModule,
     CoursesModule,
     CategoriesModule,
+    LessonsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

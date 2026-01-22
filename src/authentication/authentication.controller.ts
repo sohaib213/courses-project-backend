@@ -17,7 +17,7 @@ import { RegisterDto } from './dto/register.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { LoginDto } from './dto/login.dto';
 import { ResetPasswordDto } from './dto/resetPassword.dto';
-import { GoogleAuthGuard } from './gurards/google-auth.guard';
+import { GoogleAuthGuard } from '../guards/google-auth.guard';
 import type { Response } from 'express';
 import { CompleteProfileDto } from './dto/complete_profile.dto';
 import { ImageFilePipe } from 'src/common/pipes/image-file.pipe';

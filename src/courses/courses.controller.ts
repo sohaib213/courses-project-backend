@@ -10,14 +10,18 @@ import {
   UseInterceptors,
   UploadedFile,
   Request,
+  Query,
 } from '@nestjs/common';
 import { CoursesService } from './courses.service';
 import { CreateCourseDto } from './dto/create-course.dto';
 import { UpdateCourseDto } from './dto/update-course.dto';
-import { AuthGuard } from 'src/authentication/gurards/authentication.guard';
-import { RoleGuard } from 'src/authentication/gurards/Role.guard';
+import { AuthGuard } from 'src/guards/authentication.guard';
+import { RoleGuard } from 'src/guards/Role.guard';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ImageFilePipe } from 'src/common/pipes/image-file.pipe';
+import { course_status } from '@prisma/client';
+import { ApiKeyGuard } from 'src/guards/api-key.guard.ts.guard';
+import type { FindCoursesQuery } from 'src/common/interfaces/findCoursesQuerry';
 
 @Controller('courses')
 export class CoursesController {
@@ -41,8 +45,11 @@ export class CoursesController {
   }
 
   @Get()
-  findAll() {
-    return this.coursesService.findAll();
+  findAll(@Query() querry: FindCoursesQuery) {
+    console.log('querry', querry);
+    if (querry.page) querry.page = Number(querry.page);
+    if (querry.limit) querry.limit = Number(querry.limit);
+    return this.coursesService.findAll(querry);
   }
 
   @Get(':id')
@@ -69,9 +76,18 @@ export class CoursesController {
     );
   }
 
-  @UseGuards(AuthGuard, RoleGuard)
+  @UseGuards(ApiKeyGuard)
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.coursesService.remove(id);
+  }
+
+  @UseGuards(ApiKeyGuard)
+  @Patch(':id/status/:status')
+  updateCourseStatus(
+    @Param('id') id: string,
+    @Param('status') status: course_status,
+  ) {
+    return this.coursesService.updateCourseStatus(id, status);
   }
 }

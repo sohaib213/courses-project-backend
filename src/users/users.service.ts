@@ -4,7 +4,6 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
-import { ProfilePictureUrl } from 'src/common/assets/UserProfilePic';
 import { CloudinaryService } from 'src/cloudinary/cloudinary.service';
 
 @Injectable()

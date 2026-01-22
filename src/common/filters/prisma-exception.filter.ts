@@ -42,9 +42,9 @@ export class PrismaExceptionFilter implements ExceptionFilter {
     }
 
     response.status(status).json({
-      statusCode: status,
-      error: HttpStatus[status],
       message,
+      error: HttpStatus[status],
+      statusCode: status,
     });
     // console.error(exception);
   }

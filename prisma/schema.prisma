@@ -100,6 +100,7 @@ model lessons {
   order_number Int
   content_type content_type
   video_url    String?       @db.VarChar(255)
+  video_thumbnail String?       @db.VarChar(255)
   createdat    DateTime?     @default(now()) @db.Timestamp(6)
   courses      courses?      @relation(fields: [course_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   questions    questions[]
