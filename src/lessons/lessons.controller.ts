@@ -104,7 +104,7 @@ export class LessonsController {
     const thumbnailPic = files?.thumbnailPic?.[0];
 
     if (video) {
-      const videoPipe = new VideoFilePipe(true);
+      const videoPipe = new VideoFilePipe(false);
       try {
         await videoPipe.transform(video);
       } catch {
@@ -113,7 +113,7 @@ export class LessonsController {
     }
 
     if (thumbnailPic) {
-      const imagePipe = new ImageFilePipe(true);
+      const imagePipe = new ImageFilePipe(false);
       try {
         await imagePipe.transform(thumbnailPic);
       } catch {
@@ -126,13 +126,15 @@ export class LessonsController {
       updateLessonDto,
       // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access
       req['currentUser'].id,
-      files.video?.[0],
-      files.thumbnailPic?.[0],
+      video,
+      thumbnailPic,
     );
   }
 
+  @UseGuards(AuthGuard, RoleGuard)
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.lessonsService.remove(+id);
+  remove(@Param('id') id: string, @Req() req) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access
+    return this.lessonsService.remove(id, req['currentUser'].id);
   }
 }

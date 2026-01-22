@@ -129,10 +129,22 @@ export class LessonsService {
     video?: Express.Multer.File,
     thumbnailPic?: Express.Multer.File,
   ) {
+    if (!video && !thumbnailPic && !updateLessonDto.title) {
+      throw new BadRequestException(
+        'At least one field (title, video, or thumbnail) must be provided for update',
+      );
+    }
+
     const lesson = await this.prisma.lessons.findUnique({
       where: { id },
     });
     if (!lesson) throw new NotFoundException('lesson not found');
+
+    if ((video || thumbnailPic) && lesson.content_type !== content_type.Video) {
+      throw new BadRequestException(
+        'You cannot update a lesson with video or thumbnail if it is not a video lesson',
+      );
+    }
 
     const course = await this.prisma.courses.findUnique({
       where: { id: lesson.course_id },
@@ -181,6 +193,31 @@ export class LessonsService {
         },
       });
 
+      if (videoPublicId) {
+        const oldPublicId = this.cloudinaryService.extractPublicId(
+          lesson.video_url,
+        );
+        if (oldPublicId) {
+          this.cloudinaryService.deleteVideo(oldPublicId).catch(() => {
+            console.error(`Failed to delete old video: ${oldPublicId}`);
+          });
+        }
+      }
+
+      if (thumbnailPublicId) {
+        const oldThumbPublicId = this.cloudinaryService.extractPublicId(
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+          lesson.video_thumbnail,
+        );
+        if (oldThumbPublicId) {
+          this.cloudinaryService.deleteFile(oldThumbPublicId).catch(() => {
+            console.error(
+              `Failed to delete old thumbnail: ${oldThumbPublicId}`,
+            );
+          });
+        }
+      }
+
       return {
         updatedLesson,
       };
@@ -201,12 +238,68 @@ export class LessonsService {
 
       throw new BadRequestException(
         // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-        `Failed to create lesson: ${error.message}`,
+        `Failed to update lesson: ${error.message}`,
       );
     }
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} lesson`;
+  async remove(id: string, requestingTeacherId: string) {
+    const lesson = await this.prisma.lessons.findUnique({
+      where: { id },
+    });
+    if (!lesson) {
+      throw new NotFoundException('Lesson not found');
+    }
+
+    const course = await this.prisma.courses.findUnique({
+      where: { id: lesson.course_id },
+    });
+    if (!course) {
+      throw new BadRequestException('Invalid courseId: Course does not exist');
+    }
+
+    if (course.teacher_id !== requestingTeacherId) {
+      throw new UnauthorizedException(
+        'You are not authorized to remove lessons from this course',
+      );
+    }
+    const lessonNumber = lesson.order_number;
+
+    const deletedLesson = await this.prisma.lessons.delete({
+      where: { id },
+    });
+    await this.prisma.lessons.updateMany({
+      where: {
+        order_number: { gt: lessonNumber },
+        course_id: lesson.course_id,
+      },
+      data: {
+        order_number: {
+          decrement: 1,
+        },
+      },
+    });
+
+    if (deletedLesson && deletedLesson.content_type === content_type.Video) {
+      const videoPublicId = this.cloudinaryService.extractPublicId(
+        deletedLesson.video_url,
+      );
+      if (videoPublicId) {
+        this.cloudinaryService.deleteVideo(videoPublicId).catch(() => {
+          console.error(`Failed to delete video: ${videoPublicId}`);
+        });
+      }
+
+      const thumbnailPublicId = this.cloudinaryService.extractPublicId(
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+        deletedLesson.video_thumbnail,
+      );
+      if (thumbnailPublicId) {
+        this.cloudinaryService.deleteFile(thumbnailPublicId).catch(() => {
+          console.error(`Failed to delete thumbnail: ${thumbnailPublicId}`);
+        });
+      }
+    }
+    return { message: 'Lesson deleted successfully' };
   }
 }
