@@ -72,8 +72,14 @@
           console.warn('Chat Error:', msg);
         });
 
-        socket.on('joined-course', (courseId) => {
+        socket.on('joined-course', ({ courseId, previousMessages }) => {
           console.log('Joined course:', courseId);
+          previousMessages.forEach((element) => {
+            const li = document.createElement('li');
+            const time = element.time;
+            li.innerText = `[${time}] [${element.username}]: ${element.content}`;
+            document.getElementById('messages').appendChild(li);
+          });
         });
 
         socket.on('left-course', (courseId) => {

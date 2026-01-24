@@ -25,10 +25,10 @@ export class MessagesController {
     return this.messagesService.create(createMessageDto, req.currentUser.id);
   }
 
-  @Get()
-  findAll() {
-    return this.messagesService.findAll();
-  }
+  // @Get()
+  // findAll() {
+  //   return this.messagesService.findAll();
+  // }
 
   @Get(':id')
   findOne(@Param('id') id: string) {

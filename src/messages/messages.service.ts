@@ -18,10 +18,25 @@ export class MessagesService {
     return newMessage;
   }
 
-  findAll() {
-    return `This action returns all messages`;
+  async findAll(course_id: string) {
+    return await this.prisma.messages.findMany({
+      where: {
+        course_id,
+      },
+    });
   }
 
+  async getMessageSenderUsername(sender_id: string): Promise<string> {
+    const user = await this.prisma.users.findUnique({
+      where: {
+        id: sender_id,
+      },
+    });
+
+    if (!user) throw new Error('Internel Server Error');
+
+    return user.username;
+  }
   findOne(id: number) {
     return `This action returns a #${id} message`;
   }

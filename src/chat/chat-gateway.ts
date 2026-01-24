@@ -39,6 +39,8 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   server: Server;
 
+  private clients: Map<string, string> = new Map();
+
   constructor(
     private readonly messagesService: MessagesService,
     private readonly enrollmentsService: EnrollmentsService,
@@ -73,7 +75,33 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
 
     await client.join(payload.courseId);
-    client.emit(ChatEvents.JOINED_COURSE, payload.courseId);
+    const previousMessages = await this.messagesService.findAll(
+      payload.courseId,
+    );
+    this.clients.set(client.id, client.data.user.username);
+
+    const mappedMessages = await Promise.all(
+      previousMessages.map(async (message) => {
+        let username: string;
+        if (this.clients.has(client.data.user.id))
+          username = this.clients.get(message.sender_id);
+        else {
+          username = await this.messagesService.getMessageSenderUsername(
+            message.sender_id,
+          );
+          this.clients.set(message.sender_id, username);
+        }
+        return {
+          content: message.content,
+          username,
+          time: message.createdat,
+        };
+      }),
+    );
+    client.emit(ChatEvents.JOINED_COURSE, {
+      course_id: payload.courseId,
+      previousMessages: mappedMessages,
+    });
   }
 
   // Leave course room
