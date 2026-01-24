@@ -43,31 +43,32 @@ export class LessonsService {
     let thumbnailPublicId: string | null = null;
 
     try {
-      if (video) {
-        const videoResult = await this.cloudinaryService.uploadVideo(
-          video,
-          'lessons/videos',
-        );
-        videoUrl = videoResult.secure_url;
-        videoPublicId = videoResult.public_id;
-
-        // Auto-generate thumbnail from video if no custom thumbnail provided
-        if (!thumbnailPic) {
-          thumbnailUrl = this.cloudinaryService.generateVideoThumbnail(
-            videoResult.public_id,
+      if (createLessonDto.content === content_type.Video) {
+        if (video) {
+          const videoResult = await this.cloudinaryService.uploadVideo(
+            video,
+            'lessons/videos',
           );
+          videoUrl = videoResult.secure_url;
+          videoPublicId = videoResult.public_id;
+
+          // Auto-generate thumbnail from video if no custom thumbnail provided
+          if (!thumbnailPic) {
+            thumbnailUrl = this.cloudinaryService.generateVideoThumbnail(
+              videoResult.public_id,
+            );
+          }
+        }
+
+        if (thumbnailPic) {
+          const thumbnailResult = await this.cloudinaryService.uploadImage(
+            thumbnailPic,
+            'lessons/thumbnails',
+          );
+          thumbnailUrl = thumbnailResult.secure_url;
+          thumbnailPublicId = thumbnailResult.public_id;
         }
       }
-
-      if (thumbnailPic) {
-        const thumbnailResult = await this.cloudinaryService.uploadImage(
-          thumbnailPic,
-          'lessons/thumbnails',
-        );
-        thumbnailUrl = thumbnailResult.secure_url;
-        thumbnailPublicId = thumbnailResult.public_id;
-      }
-
       const lessonCount = await this.prisma.lessons.count({
         where: {
           course_id: createLessonDto.courseId,
@@ -300,6 +301,6 @@ export class LessonsService {
         });
       }
     }
-    return { message: 'Lesson deleted successfully' };
+    return 'Lesson deleted successfully';
   }
 }

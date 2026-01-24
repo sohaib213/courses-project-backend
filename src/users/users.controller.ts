@@ -10,7 +10,7 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
-import { AuthGuard } from 'src/guards/authentication.guard';
+import { AuthGuard } from 'src/common/guards/authentication.guard';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ImageFilePipe } from 'src/common/pipes/image-file.pipe';
 

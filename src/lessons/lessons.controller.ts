@@ -19,8 +19,8 @@ import { UpdateLessonDto } from './dto/update-lesson.dto';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { ImageFilePipe } from 'src/common/pipes/image-file.pipe';
 import { VideoFilePipe } from 'src/common/pipes/video-fle.pipe';
-import { RoleGuard } from 'src/guards/Role.guard';
-import { AuthGuard } from 'src/guards/authentication.guard';
+import { RoleGuard } from 'src/common/guards/Role.guard';
+import { AuthGuard } from 'src/common/guards/authentication.guard';
 
 @Controller('lessons')
 export class LessonsController {

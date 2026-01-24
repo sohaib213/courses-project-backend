@@ -15,12 +15,12 @@ import {
 import { CoursesService } from './courses.service';
 import { CreateCourseDto } from './dto/create-course.dto';
 import { UpdateCourseDto } from './dto/update-course.dto';
-import { AuthGuard } from 'src/guards/authentication.guard';
-import { RoleGuard } from 'src/guards/Role.guard';
+import { AuthGuard } from 'src/common/guards/authentication.guard';
+import { RoleGuard } from 'src/common/guards/Role.guard';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ImageFilePipe } from 'src/common/pipes/image-file.pipe';
 import { course_status } from '@prisma/client';
-import { ApiKeyGuard } from 'src/guards/api-key.guard.ts.guard';
+import { ApiKeyGuard } from 'src/common/guards/api-key.guard.ts.guard';
 import type { FindCoursesQuery } from 'src/common/interfaces/findCoursesQuerry';
 
 @Controller('courses')

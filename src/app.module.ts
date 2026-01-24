@@ -9,6 +9,9 @@ import { UsersModule } from './users/users.module';
 import { CoursesModule } from './courses/courses.module';
 import { CategoriesModule } from './categories/categories.module';
 import { LessonsModule } from './lessons/lessons.module';
+import { ChatModule } from './chat/chat.module';
+import { MessagesModule } from './messages/messages.module';
+import { EnrollmentsModule } from './enrollments/enrollments.module';
 
 @Module({
   imports: [
@@ -20,6 +23,9 @@ import { LessonsModule } from './lessons/lessons.module';
     CoursesModule,
     CategoriesModule,
     LessonsModule,
+    ChatModule,
+    MessagesModule,
+    EnrollmentsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

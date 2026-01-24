@@ -3,7 +3,7 @@ import { AuthenticationService } from './authentication.service';
 import { AuthenticationController } from './authentication.controller';
 import { EmailService } from './email.service';
 import { CloudinaryModule } from '../cloudinary/cloudinary.module';
-import { AuthGuard } from '../guards/authentication.guard';
+import { AuthGuard } from '../common/guards/authentication.guard';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import googleOauthConfig from './config/google-oauth.config';

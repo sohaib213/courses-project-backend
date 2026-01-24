@@ -10,7 +10,7 @@ import {
 } from '@nestjs/common';
 import { CategoriesService } from './categories.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
-import { ApiKeyGuard } from 'src/guards/api-key.guard.ts.guard';
+import { ApiKeyGuard } from 'src/common/guards/api-key.guard.ts.guard';
 
 @Controller('categories')
 export class CategoriesController {

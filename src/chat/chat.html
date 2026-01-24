@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Course Chat Test</title>
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 20px;
+      }
+      input {
+        margin: 5px 0;
+        padding: 5px;
+      }
+      button {
+        padding: 5px 10px;
+      }
+      ul {
+        list-style: none;
+        padding-left: 0;
+      }
+      li {
+        margin-bottom: 5px;
+      }
+      #onlineUsers {
+        margin-top: 10px;
+        font-size: 0.9em;
+        color: green;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>Course Chat Test</h2>
+
+    <label>User JWT:</label>
+    <input id="userToken" placeholder="JWT token" size="100" />
+    <br />
+
+    <label>Course ID:</label>
+    <input id="courseId" placeholder="Course ID" />
+    <br />
+
+    <input id="message" placeholder="Message" />
+    <button onclick="sendMessage()">Send</button>
+    <button onclick="joinCourse()">Join Course</button>
+    <button onclick="leaveCourse()">Leave Course</button>
+    <br /><br />
+
+    <div id="onlineUsers">Online Users: None</div>
+    <ul id="messages"></ul>
+
+    <script>
+      let socket;
+      let onlineUsers = new Set();
+
+      function connectSocket() {
+        const token = document.getElementById('userToken').value.trim();
+        if (!token) return alert('Please enter JWT token');
+
+        socket = io('http://localhost:3000', { auth: { token } });
+
+        socket.on('connect', () => {
+          console.log('Connected as:', socket.id);
+        });
+
+        socket.on('disconnect', () => {
+          console.log('Disconnected:', socket.id);
+        });
+
+        socket.on('chat-error', (msg) => {
+          console.warn('Chat Error:', msg);
+        });
+
+        socket.on('joined-course', (courseId) => {
+          console.log('Joined course:', courseId);
+        });
+
+        socket.on('left-course', (courseId) => {
+          console.log('Left course:', courseId);
+        });
+
+        // Listen for new messages
+        socket.on('new-message', ({ message, username }) => {
+          const li = document.createElement('li');
+          const time = new Date().toLocaleTimeString();
+          li.innerText = `[${time}] [${username}]: ${message.content}`;
+          document.getElementById('messages').appendChild(li);
+
+          // add user to online users list
+          onlineUsers.add(username);
+          updateOnlineUsers();
+        });
+
+        // Optional: handle user leave to update online users
+        socket.on('user-left', (username) => {
+          onlineUsers.delete(username);
+          updateOnlineUsers();
+        });
+      }
+
+      function updateOnlineUsers() {
+        const users = [...onlineUsers].join(', ') || 'None';
+        document.getElementById('onlineUsers').innerText =
+          'Online Users: ' + users;
+      }
+
+      function joinCourse() {
+        if (!socket) connectSocket();
+        const courseId = document.getElementById('courseId').value.trim();
+        if (!courseId) return alert('Enter Course ID');
+        socket.emit('join-course', { courseId });
+      }
+
+      function leaveCourse() {
+        if (!socket) return alert('Not connected');
+        const courseId = document.getElementById('courseId').value.trim();
+        if (!courseId) return alert('Enter Course ID');
+        socket.emit('leave-course', { courseId });
+      }
+
+      function sendMessage() {
+        if (!socket) return alert('Not connected');
+        const courseId = document.getElementById('courseId').value.trim();
+        const content = document.getElementById('message').value.trim();
+        if (!courseId || !content) return;
+        socket.emit('course-message', { courseId, content });
+      }
+
+      // Auto-connect when JWT token changes
+      document
+        .getElementById('userToken')
+        .addEventListener('change', connectSocket);
+    </script>
+  </body>
+</html>
