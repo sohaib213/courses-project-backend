@@ -1,7 +1,9 @@
 import {
   BadRequestException,
   ConflictException,
+  forwardRef,
   HttpException,
+  Inject,
   Injectable,
   InternalServerErrorException,
   NotFoundException,
@@ -20,6 +22,7 @@ import { JwtPayload } from 'jsonwebtoken';
 import { ProfilePictureUrl } from 'src/common/assets/UserProfilePic';
 import { ResetPasswordDto } from './dto/resetPassword.dto';
 import { CompleteProfileDto } from './dto/complete_profile.dto';
+import { CartService } from 'src/cart/cart.service';
 
 export enum ProviderType {
   LOCAL = 'local',
@@ -35,6 +38,8 @@ export class AuthenticationService {
     private readonly authEmailService: EmailService,
     private cloudinaryService: CloudinaryService,
     private jwtService: JwtService,
+    @Inject(forwardRef(() => CartService))
+    private readonly cartService: CartService,
   ) {}
 
   async Register(dto: RegisterDto, file?: Express.Multer.File) {
@@ -75,7 +80,7 @@ export class AuthenticationService {
     if (!username) {
       username = await this.generateUsername();
     }
-    let newUser;
+    let newUser: users;
     try {
       newUser = await this.prisma.users.create({
         data: {
@@ -106,11 +111,10 @@ export class AuthenticationService {
     }
     await this.authEmailService.sendVerificationEmail(email, verifictionCode);
 
+    await this.cartService.createCart(newUser.id);
     return {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
       id: newUser.id,
       email,
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
       username: newUser.username,
       type,
       image: profilePictureUrl,

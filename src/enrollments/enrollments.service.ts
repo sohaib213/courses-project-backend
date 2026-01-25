@@ -9,16 +9,6 @@ import { PrismaService } from 'prisma/prisma.service';
 export class EnrollmentsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  // just for testing purposes
-  async create(course_id: string, student_id: string) {
-    return await this.prisma.enrollments.create({
-      data: {
-        course_id,
-        student_id,
-      },
-    });
-  }
-
   async findEnrollmentsInCourse(course_id: string, teacherId: string) {
     const course = await this.prisma.courses.findUnique({
       where: { id: course_id },

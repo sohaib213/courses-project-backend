@@ -13,6 +13,7 @@ import { MessagesService } from './messages.service';
 import { CreateMessageDto } from './dto/create-message.dto';
 import { UpdateMessageDto } from './dto/update-message.dto';
 import { AuthGuard } from 'src/common/guards/authentication.guard';
+import type { ReqWithUser } from 'src/common/interfaces/reqWithUser';
 
 @Controller('messages')
 export class MessagesController {
@@ -20,8 +21,7 @@ export class MessagesController {
 
   @UseGuards(AuthGuard)
   @Post()
-  create(@Body() createMessageDto: CreateMessageDto, @Req() req) {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+  create(@Body() createMessageDto: CreateMessageDto, @Req() req: ReqWithUser) {
     return this.messagesService.create(createMessageDto, req.currentUser.id);
   }
 

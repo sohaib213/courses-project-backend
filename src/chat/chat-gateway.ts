@@ -94,7 +94,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         return {
           content: message.content,
           username,
-          time: message.createdat,
+          time: message.createdat.toLocaleTimeString(),
         };
       }),
     );

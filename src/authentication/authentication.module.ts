@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { AuthenticationService } from './authentication.service';
 import { AuthenticationController } from './authentication.controller';
 import { EmailService } from './email.service';
@@ -8,6 +8,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import googleOauthConfig from './config/google-oauth.config';
 import { GoogleStrategy } from './strategies/google.strategy';
+import { CartModule } from 'src/cart/cart.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { GoogleStrategy } from './strategies/google.strategy';
       inject: [ConfigService],
     }),
     ConfigModule.forFeature(googleOauthConfig),
+    forwardRef(() => CartModule),
   ],
   controllers: [AuthenticationController],
   providers: [AuthenticationService, EmailService, AuthGuard, GoogleStrategy],

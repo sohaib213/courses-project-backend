@@ -94,17 +94,17 @@ model essay_answers {
 }
 
 model lessons {
-  id           String        @id @default(uuid()) @db.Uuid
-  course_id    String?       @db.Uuid
-  title        String        @db.VarChar(255)
-  order_number Int
-  content_type content_type
-  video_url    String?       @db.VarChar(255)
+  id              String        @id @default(uuid()) @db.Uuid
+  course_id       String?       @db.Uuid
+  title           String        @db.VarChar(255)
+  order_number    Int
+  content_type    content_type
+  video_url       String?       @db.VarChar(255)
+  createdat       DateTime?     @default(now()) @db.Timestamp(6)
   video_thumbnail String?       @db.VarChar(255)
-  createdat    DateTime?     @default(now()) @db.Timestamp(6)
-  courses      courses?      @relation(fields: [course_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  questions    questions[]
-  submissions  submissions[]
+  courses         courses?      @relation(fields: [course_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  questions       questions[]
+  submissions     submissions[]
 
   @@unique([course_id, order_number])
   @@index([course_id], map: "idx_lessons_course_id")

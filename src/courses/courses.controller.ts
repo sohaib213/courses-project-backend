@@ -11,6 +11,7 @@ import {
   UploadedFile,
   Request,
   Query,
+  Req,
 } from '@nestjs/common';
 import { CoursesService } from './courses.service';
 import { CreateCourseDto } from './dto/create-course.dto';
@@ -22,6 +23,7 @@ import { ImageFilePipe } from 'src/common/pipes/image-file.pipe';
 import { course_status } from '@prisma/client';
 import { ApiKeyGuard } from 'src/common/guards/api-key.guard.ts.guard';
 import type { FindCoursesQuery } from 'src/common/interfaces/findCoursesQuerry';
+import type { ReqWithUser } from 'src/common/interfaces/reqWithUser';
 
 @Controller('courses')
 export class CoursesController {
@@ -32,13 +34,12 @@ export class CoursesController {
   @UseInterceptors(FileInterceptor('thumbnailPic'))
   create(
     @Body() createCourseDto: CreateCourseDto,
-    @Request() req,
+    @Req() req: ReqWithUser,
     @UploadedFile(new ImageFilePipe(false))
     file?: Express.Multer.File,
   ) {
     return this.coursesService.create(
       createCourseDto,
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access
       req.currentUser.id,
       file,
     );
@@ -63,20 +64,19 @@ export class CoursesController {
   update(
     @Param('id') id: string,
     @Body() updateCourseDto: UpdateCourseDto,
-    @Request() req,
+    @Req() req: ReqWithUser,
     @UploadedFile(new ImageFilePipe(false))
     file?: Express.Multer.File,
   ) {
     return this.coursesService.update(
       id,
       updateCourseDto,
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access
       req.currentUser.id,
       file,
     );
   }
 
-  @UseGuards(ApiKeyGuard)
+  @UseGuards(ApiKeyGuard, RoleGuard)
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.coursesService.remove(id);

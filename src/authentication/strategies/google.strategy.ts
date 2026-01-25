@@ -6,6 +6,7 @@ import type { ConfigType } from '@nestjs/config';
 import { AuthenticationService } from '../authentication.service';
 import { PrismaService } from 'prisma/prisma.service';
 import { users } from '@prisma/client';
+import { CartService } from 'src/cart/cart.service';
 @Injectable()
 export class GoogleStrategy extends PassportStrategy(Strategy) {
   constructor(
@@ -13,6 +14,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy) {
     private googleConfigration: ConfigType<typeof googleOauthConfig>,
     private authService: AuthenticationService,
     private readonly prisma: PrismaService,
+    private readonly cartService: CartService,
   ) {
     super({
       clientID: googleConfigration.clientID,
@@ -40,6 +42,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy) {
           provider: 'google',
         },
       });
+      await this.cartService.createCart(user.id);
     }
 
     if (user && user.provider !== 'google') {
@@ -47,6 +50,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy) {
         `An account with this email already exists using ${user.provider} provider. Please sign in with ${user.provider} instead.`,
       );
     }
+
     return user;
   }
 }

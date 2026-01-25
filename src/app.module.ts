@@ -12,6 +12,7 @@ import { LessonsModule } from './lessons/lessons.module';
 import { ChatModule } from './chat/chat.module';
 import { MessagesModule } from './messages/messages.module';
 import { EnrollmentsModule } from './enrollments/enrollments.module';
+import { CartModule } from './cart/cart.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { EnrollmentsModule } from './enrollments/enrollments.module';
     ChatModule,
     MessagesModule,
     EnrollmentsModule,
+    CartModule,
   ],
   controllers: [AppController],
   providers: [AppService],

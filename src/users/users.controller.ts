@@ -1,18 +1,18 @@
 import {
   Controller,
   Get,
-  Body,
   Patch,
   UseGuards,
   Query,
   UploadedFile,
-  Request,
   UseInterceptors,
+  Req,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { AuthGuard } from 'src/common/guards/authentication.guard';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ImageFilePipe } from 'src/common/pipes/image-file.pipe';
+import type { ReqWithUser } from 'src/common/interfaces/reqWithUser';
 
 @Controller('users')
 export class UsersController {
@@ -49,12 +49,11 @@ export class UsersController {
   @UseInterceptors(FileInterceptor('profilePicture'))
   @Patch()
   update(
-    @Request()
-    req,
+    @Req()
+    req: ReqWithUser,
     @UploadedFile(new ImageFilePipe(true))
     file?: Express.Multer.File,
   ) {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access
     return this.usersService.update(req.currentUser.id, file);
   }
 }
