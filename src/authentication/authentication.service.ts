@@ -45,6 +45,10 @@ export class AuthenticationService {
   async Register(dto: RegisterDto, file?: Express.Multer.File) {
     const { email, password, confirm_password, type } = dto;
 
+    if (password !== confirm_password) {
+      throw new BadRequestException('Passwords do not match');
+    }
+
     const existingUser = await this.prisma.users.findUnique({
       where: {
         email: email,
@@ -66,10 +70,6 @@ export class AuthenticationService {
       } catch {
         throw new BadRequestException('Failed to upload profile picture');
       }
-    }
-
-    if (password !== confirm_password) {
-      throw new BadRequestException('Passwords do not match');
     }
 
     const hashedPassword = await bcrypt.hash(password, this.saltOrRounds);

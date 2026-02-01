@@ -1,4 +1,3 @@
-// dto/create-course.dto.ts
 import {
   IsString,
   IsOptional,
