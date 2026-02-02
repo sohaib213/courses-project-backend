@@ -1,4 +1,12 @@
-import { Controller, Get, Param, Delete, UseGuards, Req } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Param,
+  Delete,
+  UseGuards,
+  Req,
+  Patch,
+} from '@nestjs/common';
 import { EnrollmentsService } from './enrollments.service';
 import { FindEnrollmentDto } from './dto/create-enrollment.dto';
 import { AuthGuard } from 'src/common/guards/authentication.guard';
@@ -37,5 +45,11 @@ export class EnrollmentsController {
   @Delete(':id')
   remove(@Param('id') id: string, @Req() req: ReqWithUser) {
     return this.enrollmentsService.remove(id, req.currentUser.id);
+  }
+
+  @UseGuards(AuthGuard)
+  @Patch(':id')
+  finishLesson(@Param('id') id: string, @Req() req: ReqWithUser) {
+    return this.enrollmentsService.finishLesson(id, req.currentUser.id);
   }
 }

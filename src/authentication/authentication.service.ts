@@ -19,7 +19,7 @@ import { Prisma } from '@prisma/client';
 import { JwtService } from '@nestjs/jwt';
 import { users } from '@prisma/client';
 import { JwtPayload } from 'jsonwebtoken';
-import { ProfilePictureUrl } from 'src/common/assets/UserProfilePic';
+import { ProfilePictureUrl } from 'src/common/assets/defaultPhotos';
 import { ResetPasswordDto } from './dto/resetPassword.dto';
 import { CompleteProfileDto } from './dto/complete_profile.dto';
 import { CartService } from 'src/cart/cart.service';

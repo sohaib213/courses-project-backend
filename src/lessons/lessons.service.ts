@@ -88,6 +88,18 @@ export class LessonsService {
         },
       });
 
+      await this.prisma.courses.update({
+        where: { id: course.id },
+        data: { lessons_number: { increment: 1 } },
+      });
+
+      await this.prisma.enrollments.updateMany({
+        where: {
+          course_id: course.id,
+        },
+        data: { completed: false },
+      });
+
       return {
         lesson,
       };
@@ -279,6 +291,11 @@ export class LessonsService {
           decrement: 1,
         },
       },
+    });
+
+    await this.prisma.courses.update({
+      where: { id: course.id },
+      data: { lessons_number: { decrement: 1 } },
     });
 
     if (deletedLesson && deletedLesson.content_type === content_type.Video) {

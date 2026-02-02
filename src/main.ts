@@ -2,20 +2,17 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { TransformInterceptor } from './common/interceptors/transform/transform.interceptor';
-import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter';
 import * as bodyParser from 'body-parser';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
     rawBody: true,
   });
-  // app.useGlobalFilters(new HttpExceptionFilter());
   app.use('/carts/webhooks', bodyParser.raw({ type: 'application/json' }));
   app.enableCors({
     origin: process.env.FRONTEND_URL,
     credentials: true,
   });
-  app.useGlobalFilters(new PrismaExceptionFilter());
   app.useGlobalInterceptors(new TransformInterceptor());
   app.useGlobalPipes(
     new ValidationPipe({

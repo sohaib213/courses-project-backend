@@ -1,6 +1,9 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
+  InternalServerErrorException,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
@@ -35,6 +38,7 @@ export class EnrollmentsService {
       },
     });
   }
+
   async findOne(id: string, userId: string) {
     return await this.prisma.enrollments.findUnique({
       where: {
@@ -59,6 +63,40 @@ export class EnrollmentsService {
     return await this.prisma.enrollments.delete({
       where: {
         id,
+      },
+    });
+  }
+
+  async finishLesson(id: string, userId: string) {
+    const enrollment = await this.prisma.enrollments.findUnique({
+      where: {
+        id,
+      },
+    });
+
+    if (!enrollment) throw new NotFoundException('enrollment not found');
+    if (enrollment.student_id !== userId)
+      throw new UnauthorizedException(
+        'You are not authorized to access this enrollment',
+      );
+
+    const course = await this.prisma.courses.findUnique({
+      where: { id: enrollment.course_id },
+    });
+    if (!course) throw new InternalServerErrorException();
+
+    if (enrollment.current_lesson_order > course.lessons_number)
+      throw new ForbiddenException("can't exceed number of lessons in course");
+
+    await this.prisma.enrollments.update({
+      where: {
+        id,
+      },
+      data: {
+        current_lesson_order: {
+          increment: 1,
+        },
+        completed: enrollment.current_lesson_order === course.lessons_number,
       },
     });
   }

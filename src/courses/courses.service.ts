@@ -9,10 +9,11 @@ import { CloudinaryService } from 'src/cloudinary/cloudinary.service';
 import { PrismaService } from 'prisma/prisma.service';
 import { course_status } from '@prisma/client';
 import { FindCoursesQuery } from 'src/common/interfaces/findCoursesQuerry';
+import { CourseCoverURL } from 'src/common/assets/defaultPhotos';
 
 @Injectable()
 export class CoursesService {
-  defaultURL = 'https://example.com/default-course-image.png';
+  defaultURL = CourseCoverURL;
 
   constructor(
     private readonly cloudinaryService: CloudinaryService,
