@@ -155,8 +155,9 @@ model payments {
   user_id                   String?         @db.Uuid
   amount  Decimal         @db.Decimal(10, 2)
   status  payment_status? @default(Pending)
-  stripe_payment_intent_id String?         @unique
-  paid_at DateTime?       @db.Timestamp(6)
+  stripe_payment_session_id String?         @unique
+  created_at               DateTime  @default(now()) @db.Timestamp(6)
+  finalized_at DateTime?       @db.Timestamp(6)
   carts carts? @relation(fields: [cart_id], references: [id])
   users users? @relation(fields: [user_id], references: [id])
 
@@ -240,6 +241,7 @@ enum payment_status {
   Pending
   Paid
   Failed
+  Canceled
 }
 
 enum provider_type {

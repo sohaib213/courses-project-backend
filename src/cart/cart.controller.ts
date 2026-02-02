@@ -47,7 +47,6 @@ export class CartController {
   @UseGuards(AuthGuard)
   @Get('payments')
   getPayments(@Req() req: ReqWithUser) {
-    console.log('GG');
     return this.cartService.getPayments(req.currentUser.id);
   }
 
@@ -61,6 +60,15 @@ export class CartController {
   @Delete(':id')
   remove(@Param('id') id: string, @Req() req: ReqWithUser) {
     return this.cartService.removeItem(id, req.currentUser.id);
+  }
+
+  @UseGuards(AuthGuard)
+  @Get('active/items')
+  async findItemsInActiveCart(@Req() req: ReqWithUser) {
+    const cart_id = (
+      await this.cartService.findUserActiveCart(req.currentUser.id)
+    ).id;
+    return this.cartService.findItemsInCart(cart_id, req.currentUser.id);
   }
 
   @UseGuards(AuthGuard)

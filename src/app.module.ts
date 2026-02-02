@@ -13,6 +13,7 @@ import { ChatModule } from './chat/chat.module';
 import { MessagesModule } from './messages/messages.module';
 import { EnrollmentsModule } from './enrollments/enrollments.module';
 import { CartModule } from './cart/cart.module';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { CartModule } from './cart/cart.module';
     MessagesModule,
     EnrollmentsModule,
     CartModule,
+    ScheduleModule.forRoot(),
   ],
   controllers: [AppController],
   providers: [AppService],

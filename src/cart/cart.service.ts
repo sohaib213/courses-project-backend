@@ -3,6 +3,7 @@ import {
   ForbiddenException,
   Injectable,
   InternalServerErrorException,
+  Logger,
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -11,10 +12,13 @@ import { PrismaService } from 'prisma/prisma.service';
 import { cart_items, cart_status, payment_status } from '@prisma/client';
 import Stripe from 'stripe';
 import { ConfigService } from '@nestjs/config';
+import { Cron } from '@nestjs/schedule';
 
 @Injectable()
 export class CartService {
   private stripe: Stripe;
+
+  private readonly logger = new Logger(CartService.name);
 
   constructor(
     private readonly prisma: PrismaService,
@@ -40,6 +44,9 @@ export class CartService {
     });
     if (!course) throw new BadRequestException('no course with this id');
 
+    if (course.teacher_id === user_id) {
+      throw new BadRequestException('You cannot buy your own course');
+    }
     const cart = await this.findUserActiveCart(user_id);
 
     const existingItem = await this.prisma.cart_items.findFirst({
@@ -160,14 +167,12 @@ export class CartService {
         user_id,
       );
 
-      // Create payment record with PENDING status and Stripe reference
       await tx.payments.create({
         data: {
           cart_id: cart.id,
           amount: totalAmount,
-          status: payment_status.Pending, // Changed to Pending
-          stripe_payment_intent_id: session.id, // Store Stripe reference
-          paid_at: null, // Will be set after webhook confirmation
+          status: payment_status.Pending,
+          stripe_payment_session_id: session.id,
           user_id,
         },
       });
@@ -230,28 +235,44 @@ export class CartService {
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object;
-        return this.confirmPayment(session.id); // all DB & enrollments logic here
+        await this.confirmPayment(session.id);
+        break;
       }
 
-      // optionally handle other events
+      case 'checkout.session.expired': {
+        const session = event.data.object;
+        await this.markPaymentCanceled(session.id);
+        break;
+      }
+
+      case 'payment_intent.payment_failed': {
+        const intent = event.data.object;
+
+        const session = await this.stripe.checkout.sessions.list({
+          payment_intent: intent.id,
+          limit: 1,
+        });
+        if (session.data.length > 0) {
+          await this.markPaymentFailed(session.data[0].id);
+        }
+        break;
+      }
+
       default:
         console.log(`Unhandled event type ${event.type}`);
     }
   }
 
-  async confirmPayment(paymentIntentId: string) {
-    console.log('Enter Confirm id = ', paymentIntentId);
+  async confirmPayment(session_id: string) {
     return this.prisma.$transaction(async (tx) => {
-      // Find payment by Stripe payment intent ID
       const payment = await tx.payments.findUnique({
-        where: { stripe_payment_intent_id: paymentIntentId },
+        where: { stripe_payment_session_id: session_id },
         include: { carts: true },
       });
 
-      console.log(1);
       if (!payment) throw new NotFoundException('Payment not found');
       if (payment.status === payment_status.Paid) {
-        return payment; // Already processed
+        return payment;
       }
 
       const cart = await this.prisma.carts.findUnique({
@@ -260,47 +281,34 @@ export class CartService {
         },
       });
 
-      console.log(2);
-
-      // Get cart items for enrollment
       const cart_items = await this.findItemsInCart(
         payment.cart_id,
         cart.user_id,
       );
-      console.log(3);
 
-      // Update payment to Paid
       await tx.payments.update({
         where: { id: payment.id },
         data: {
           status: payment_status.Paid,
-          paid_at: new Date(),
+          finalized_at: new Date(),
         },
       });
-      console.log(4);
 
-      // Create enrollments
       const enrollmentsData = cart_items.map((item) => ({
         student_id: cart.user_id,
         course_id: item.course_id,
       }));
-      console.log(5);
 
       await tx.enrollments.createMany({
         data: enrollmentsData,
         skipDuplicates: true,
       });
-      console.log(6);
 
-      // Mark cart as checked out
       await tx.carts.update({
         where: { id: payment.cart_id },
         data: { status: cart_status.CheckedOut },
       });
 
-      console.log(7);
-
-      // Create new active cart
       await tx.carts.create({
         data: { user_id: cart.user_id },
       });
@@ -309,8 +317,61 @@ export class CartService {
     });
   }
 
+  async markPaymentFailed(session_id: string) {
+    const payment = await this.prisma.payments.findUnique({
+      where: {
+        stripe_payment_session_id: session_id,
+      },
+    });
+
+    if (!payment) throw new NotFoundException('Payment not found');
+    if (payment.status !== 'Pending') return payment; // already processed
+
+    await this.prisma.payments.update({
+      where: {
+        stripe_payment_session_id: session_id,
+      },
+      data: {
+        status: payment_status.Failed,
+        finalized_at: new Date(),
+      },
+    });
+  }
+
+  async markPaymentCanceled(session_id: string) {
+    const payment = await this.prisma.payments.findUnique({
+      where: { stripe_payment_session_id: session_id },
+    });
+
+    if (!payment || payment.status !== payment_status.Pending) return;
+
+    await this.prisma.payments.update({
+      where: { id: payment.id },
+      data: {
+        status: payment_status.Canceled,
+        finalized_at: new Date(),
+      },
+    });
+  }
+
+  async cancelOldPendingPayments(hours: number = 24) {
+    const result = await this.prisma.$executeRawUnsafe(`
+    UPDATE payments
+    SET status = 'Canceled', finalized_at = NOW()
+    WHERE status = 'Pending'
+      AND created_at < NOW() - INTERVAL ${hours} HOUR
+  `);
+
+    this.logger.log(`Canceled ${result} pending payments older than ${hours}h`);
+    return result;
+  }
+
+  @Cron('0 0 * * *')
+  async handleDailyCleanup() {
+    await this.cancelOldPendingPayments();
+  }
+
   async getPayments(user_id: string) {
-    console.log('user id = ', user_id);
     const payments = await this.prisma.payments.findMany({
       where: {
         user_id,
