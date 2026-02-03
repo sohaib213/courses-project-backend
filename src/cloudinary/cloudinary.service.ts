@@ -91,9 +91,6 @@ export class CloudinaryService {
     });
   }
 
-  /**
-   * Delete file from Cloudinary
-   */
   async deleteFile(
     publicId: string,
     resourceType: 'image' | 'video' | 'raw' = 'image',
@@ -101,6 +98,7 @@ export class CloudinaryService {
     try {
       const result = (await cloudinary.uploader.destroy(publicId, {
         resource_type: resourceType,
+        invalidate: true,
       })) as CloudinaryDeleteResult;
 
       if (result.result !== 'ok') {

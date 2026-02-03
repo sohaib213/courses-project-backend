@@ -8,5 +8,6 @@ import { AuthenticationModule } from 'src/authentication/authentication.module';
   imports: [AuthenticationModule, CloudinaryModule],
   controllers: [LessonsController],
   providers: [LessonsService],
+  exports: [LessonsService],
 })
 export class LessonsModule {}

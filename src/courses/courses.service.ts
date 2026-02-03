@@ -11,6 +11,7 @@ import { course_status, user_type } from '@prisma/client';
 import { CourseCoverURL } from 'src/common/assets/defaultPhotos';
 import { FindCoursesQueryDto } from './dto/find-corse-query.dto';
 import { PageLimitDto } from '../common/dtos/page-limit-dto';
+import { assertHasUpdatePayload } from 'src/common/utils/checkDataToUpdate';
 
 @Injectable()
 export class CoursesService {
@@ -144,27 +145,22 @@ export class CoursesService {
       }
     }
 
-    let numberOfUpdates = 0;
-    Object.keys(updateCourseDto).forEach((key) => {
-      if (updateCourseDto[key as keyof UpdateCourseDto] !== undefined) {
-        numberOfUpdates++;
-      }
-    });
-    if (numberOfUpdates === 0 && !imageUrl) {
-      throw new BadRequestException('No data provided for update');
-    }
-    console.log(updateCourseDto, thumbnail_url);
+    assertHasUpdatePayload(updateCourseDto, [imageUrl]);
+
     try {
       const updatedCourse = await this.prisma.courses.update({
         where: { id },
         data: {
           ...updateCourseDto,
-          isReady: course.isReady || (updateCourseDto.isReady && true),
+          isReady:
+            updateCourseDto.isReady !== undefined
+              ? updateCourseDto.isReady
+              : course.isReady,
           thumbnail_url,
         },
       });
 
-      if (imageUrl) {
+      if (imageUrl && course.thumbnail_url !== this.defaultURL) {
         const oldPublicId = this.cloudinaryService.extractPublicId(
           course.thumbnail_url,
         );
@@ -231,3 +227,4 @@ export class CoursesService {
     }
   }
 }
+// https://res.cloudinary.com/dspfo4tsu/image/upload/v1770119258/courses/thumbnails/qefsmhjczpqd1iapt45e.png

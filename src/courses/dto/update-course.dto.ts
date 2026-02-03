@@ -10,7 +10,7 @@ import {
   IsBoolean,
 } from 'class-validator';
 import { course_difficulty } from '@prisma/client';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 
 export class UpdateCourseDto {
   @IsOptional()
@@ -45,7 +45,11 @@ export class UpdateCourseDto {
   estimated_duration?: number;
 
   @IsOptional()
-  @Type(() => Boolean)
-  @IsBoolean()
+  @Transform(({ value }: { value: string | boolean }): string | boolean => {
+    if (value === 'true' || value === true) return true;
+    if (value === 'false' || value === false) return false;
+    return value;
+  })
+  @IsBoolean({ message: 'isReady must be a boolean value' })
   isReady?: boolean;
 }

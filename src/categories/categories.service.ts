@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { PrismaService } from 'prisma/prisma.service';
+import { assertHasUpdatePayload } from 'src/common/utils/checkDataToUpdate';
 
 @Injectable()
 export class CategoriesService {
@@ -22,6 +23,7 @@ export class CategoriesService {
   }
 
   update(id: string, name: string) {
+    assertHasUpdatePayload({ name });
     return this.prisma.categories.update({
       where: { id },
       data: { name },

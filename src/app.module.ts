@@ -16,6 +16,7 @@ import { CartModule } from './cart/cart.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { GlobalExceptionFilter } from './common/filters/globalExceptionFilter';
 import { APP_FILTER } from '@nestjs/core';
+import { QuestionsModule } from './questions/questions.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { APP_FILTER } from '@nestjs/core';
     EnrollmentsModule,
     CartModule,
     ScheduleModule.forRoot(),
+    QuestionsModule,
   ],
   controllers: [AppController],
   providers: [

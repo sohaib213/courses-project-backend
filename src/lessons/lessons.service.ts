@@ -10,6 +10,7 @@ import { CloudinaryService } from 'src/cloudinary/cloudinary.service';
 import { PrismaService } from 'prisma/prisma.service';
 import { content_type, user_type } from '@prisma/client';
 import { JwtPayload } from 'src/common/interfaces/jwtPayload';
+import { assertHasUpdatePayload } from 'src/common/utils/checkDataToUpdate';
 
 @Injectable()
 export class LessonsService {
@@ -203,16 +204,7 @@ export class LessonsService {
     video?: Express.Multer.File,
     thumbnailPic?: Express.Multer.File,
   ) {
-    if (
-      !video &&
-      !thumbnailPic &&
-      !updateLessonDto.title &&
-      updateLessonDto.isReady === undefined
-    ) {
-      throw new BadRequestException(
-        'At least one field (title, isReady, video, or thumbnail) must be provided for update',
-      );
-    }
+    assertHasUpdatePayload(updateLessonDto, [video, thumbnailPic]);
 
     const lesson = await this.prisma.lessons.findUnique({
       where: { id },
@@ -239,7 +231,6 @@ export class LessonsService {
     }
 
     let videoUrl: string = lesson.video_url;
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     let thumbnailUrl: string = lesson.video_thumbnail;
     let videoPublicId: string | null = null;
     let thumbnailPublicId: string | null = null;
@@ -289,7 +280,6 @@ export class LessonsService {
 
       if (thumbnailPublicId) {
         const oldThumbPublicId = this.cloudinaryService.extractPublicId(
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
           lesson.video_thumbnail,
         );
         if (oldThumbPublicId) {
@@ -379,7 +369,6 @@ export class LessonsService {
       }
 
       const thumbnailPublicId = this.cloudinaryService.extractPublicId(
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
         deletedLesson.video_thumbnail,
       );
       if (thumbnailPublicId) {
@@ -388,6 +377,6 @@ export class LessonsService {
         });
       }
     }
-    return 'Lesson deleted successfully';
+    return { message: 'Lesson deleted successfully' };
   }
 }

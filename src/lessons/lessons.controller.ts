@@ -36,7 +36,7 @@ export class LessonsController {
   )
   async create(
     @Body() createLessonDto: CreateLessonDto,
-    @Req() req,
+    @Req() req: ReqWithUser,
     @UploadedFiles()
     files: {
       video?: Express.Multer.File[];
@@ -65,8 +65,7 @@ export class LessonsController {
     }
     return this.lessonsService.create(
       createLessonDto,
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access
-      req['currentUser'].id,
+      req.currentUser.id,
       files.video?.[0],
       files.thumbnailPic?.[0],
     );
@@ -100,7 +99,7 @@ export class LessonsController {
   async update(
     @Param('id') id: string,
     @Body() updateLessonDto: UpdateLessonDto,
-    @Req() req,
+    @Req() req: ReqWithUser,
     @UploadedFiles()
     files: {
       video?: Express.Multer.File[];
@@ -131,8 +130,7 @@ export class LessonsController {
     return this.lessonsService.update(
       id,
       updateLessonDto,
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access
-      req['currentUser'].id,
+      req.currentUser.id,
       video,
       thumbnailPic,
     );
@@ -140,8 +138,7 @@ export class LessonsController {
 
   @UseGuards(AuthGuard, RoleGuard)
   @Delete(':id')
-  remove(@Param('id') id: string, @Req() req) {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access
-    return this.lessonsService.remove(id, req['currentUser'].id);
+  remove(@Param('id') id: string, @Req() req: ReqWithUser) {
+    return this.lessonsService.remove(id, req.currentUser.id);
   }
 }

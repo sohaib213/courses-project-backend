@@ -32,6 +32,7 @@ export class CategoriesController {
     return this.categoriesService.findOne(id);
   }
 
+  @UseGuards(ApiKeyGuard)
   @Patch(':id')
   update(@Param('id') id: string, @Body() body: { name: string }) {
     return this.categoriesService.update(id, body.name);
