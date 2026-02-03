@@ -1,3 +1,4 @@
+import { user_type } from '@prisma/client';
 import {
   IsEmail,
   IsEnum,
@@ -5,11 +6,6 @@ import {
   IsString,
   MinLength,
 } from 'class-validator';
-
-export enum UserType {
-  STUDENT = 'Student',
-  TEACHER = 'Teacher',
-}
 
 export class RegisterDto {
   @IsEmail({}, { message: 'Invalid email address' })
@@ -19,8 +15,8 @@ export class RegisterDto {
   @IsOptional()
   username?: string;
 
-  @IsEnum(UserType)
-  type: UserType;
+  @IsEnum(user_type)
+  type: user_type;
 
   @IsString()
   @MinLength(6)

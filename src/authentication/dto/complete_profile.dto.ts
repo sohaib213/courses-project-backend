@@ -1,13 +1,13 @@
+import { user_type } from '@prisma/client';
 import { IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
-import { UserType } from './register.dto';
 
 export class CompleteProfileDto {
   @IsString()
   @IsOptional()
   username?: string;
 
-  @IsEnum(UserType)
-  type: UserType;
+  @IsEnum(user_type)
+  type: user_type;
 
   @IsString()
   @IsNotEmpty()

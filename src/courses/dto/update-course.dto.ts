@@ -7,6 +7,7 @@ import {
   MaxLength,
   Min,
   IsUUID,
+  IsBoolean,
 } from 'class-validator';
 import { course_difficulty } from '@prisma/client';
 import { Type } from 'class-transformer';
@@ -42,4 +43,9 @@ export class UpdateCourseDto {
   @IsNumber()
   @Min(1)
   estimated_duration?: number;
+
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  isReady?: boolean;
 }

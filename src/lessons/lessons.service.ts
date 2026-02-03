@@ -8,7 +8,8 @@ import { CreateLessonDto } from './dto/create-lesson.dto';
 import { UpdateLessonDto } from './dto/update-lesson.dto';
 import { CloudinaryService } from 'src/cloudinary/cloudinary.service';
 import { PrismaService } from 'prisma/prisma.service';
-import { content_type } from '@prisma/client';
+import { content_type, user_type } from '@prisma/client';
+import { JwtPayload } from 'src/common/interfaces/jwtPayload';
 
 @Injectable()
 export class LessonsService {
@@ -85,6 +86,7 @@ export class LessonsService {
           order_number: nextOrderNumber,
           video_url: videoUrl,
           video_thumbnail: thumbnailUrl,
+          isReady: createLessonDto.content === content_type.Video,
         },
       });
 
@@ -125,14 +127,73 @@ export class LessonsService {
     }
   }
 
-  findAll(courseId?: string) {
+  async isAllow(courseId: string, user: JwtPayload) {
+    let allow = false;
+    const course = await this.prisma.courses.findUnique({
+      where: { id: courseId },
+    });
+
+    if (!course) {
+      throw new NotFoundException('Course not found');
+    }
+
+    allow = user.type === user_type.Teacher && course.teacher_id === user.id;
+
+    if (!allow) {
+      const enrollment = await this.prisma.enrollments.findUnique({
+        where: {
+          student_id_course_id: {
+            course_id: courseId,
+            student_id: user.id,
+          },
+        },
+      });
+
+      if (enrollment) allow = true;
+    }
+
+    if (!allow) {
+      throw new UnauthorizedException('you are not allowed to see this lesson');
+    }
+
+    return {
+      isTeacher:
+        user.type === user_type.Teacher && course.teacher_id === user.id,
+    };
+  }
+
+  async findAll(courseId: string, user: JwtPayload) {
+    const { isTeacher } = await this.isAllow(courseId, user);
+
     return this.prisma.lessons.findMany({
-      where: courseId ? { course_id: courseId } : {},
+      where: {
+        course_id: courseId,
+        ...(isTeacher ? {} : { isReady: true }),
+      },
+      orderBy: { order_number: 'asc' },
     });
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} lesson`;
+  async findOne(id: string, user: JwtPayload) {
+    const lesson = await this.prisma.lessons.findUnique({ where: { id } });
+
+    if (!lesson) throw new NotFoundException('No lesson by this id');
+
+    const { isTeacher } = await this.isAllow(lesson.course_id, user);
+
+    if (!isTeacher && !lesson.isReady) {
+      throw new UnauthorizedException('This lesson is not ready yet');
+    }
+
+    return lesson;
+  }
+
+  getLessonsTitle(courseId: string) {
+    return this.prisma.lessons.findMany({
+      where: { course_id: courseId, isReady: true },
+      select: { title: true, content_type: true },
+      orderBy: { order_number: 'asc' },
+    });
   }
 
   async update(
@@ -142,9 +203,14 @@ export class LessonsService {
     video?: Express.Multer.File,
     thumbnailPic?: Express.Multer.File,
   ) {
-    if (!video && !thumbnailPic && !updateLessonDto.title) {
+    if (
+      !video &&
+      !thumbnailPic &&
+      !updateLessonDto.title &&
+      updateLessonDto.isReady === undefined
+    ) {
       throw new BadRequestException(
-        'At least one field (title, video, or thumbnail) must be provided for update',
+        'At least one field (title, isReady, video, or thumbnail) must be provided for update',
       );
     }
 
@@ -201,6 +267,10 @@ export class LessonsService {
         where: { id },
         data: {
           title: updateLessonDto.title || lesson.title,
+          isReady:
+            updateLessonDto.isReady !== undefined
+              ? updateLessonDto.isReady
+              : lesson.isReady,
           video_url: videoUrl,
           video_thumbnail: thumbnailUrl,
         },

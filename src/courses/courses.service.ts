@@ -7,9 +7,10 @@ import { CreateCourseDto } from './dto/create-course.dto';
 import { UpdateCourseDto } from './dto/update-course.dto';
 import { CloudinaryService } from 'src/cloudinary/cloudinary.service';
 import { PrismaService } from 'prisma/prisma.service';
-import { course_status } from '@prisma/client';
-import { FindCoursesQuery } from 'src/common/interfaces/findCoursesQuerry';
+import { course_status, user_type } from '@prisma/client';
 import { CourseCoverURL } from 'src/common/assets/defaultPhotos';
+import { FindCoursesQueryDto } from './dto/find-corse-query.dto';
+import { PageLimitDto } from '../common/dtos/page-limit-dto';
 
 @Injectable()
 export class CoursesService {
@@ -53,20 +54,56 @@ export class CoursesService {
     }
   }
 
-  async findAll(querry: FindCoursesQuery) {
-    let { page, limit } = querry;
-    const { teacher_id, category_id } = querry;
-
+  calcSkip(page: number, limit: number) {
     page = page && page > 0 ? page : 1;
     limit = limit && limit > 0 ? limit : 10;
     const skip = (page - 1) * limit;
+    return { skip, limitt: limit };
+  }
+
+  async findAll(querry: FindCoursesQueryDto) {
+    const { teacher_id, category_id } = querry;
+    const { page, limit } = querry;
+    const { skip, limitt }: { skip: number; limitt: number } = this.calcSkip(
+      page,
+      limit,
+    );
+
+    if (teacher_id) {
+      const teacher = await this.prisma.users.findUnique({
+        where: {
+          id: teacher_id,
+        },
+      });
+
+      if (!teacher || teacher.type !== user_type.Teacher) {
+        throw new BadRequestException('invalid teacher id');
+      }
+    }
     return await this.prisma.courses.findMany({
       where: {
         teacher_id,
         category_id,
+        isReady: true,
+        status: course_status.Approved,
       },
       skip,
-      take: limit,
+      take: limitt,
+    });
+  }
+
+  async findTeacherCourses(querry: PageLimitDto, teacher_id: string) {
+    const { page, limit } = querry;
+    const { skip, limitt }: { skip: number; limitt: number } = this.calcSkip(
+      page,
+      limit,
+    );
+    return await this.prisma.courses.findMany({
+      where: {
+        teacher_id,
+      },
+      skip,
+      take: limitt,
     });
   }
 
@@ -122,17 +159,20 @@ export class CoursesService {
         where: { id },
         data: {
           ...updateCourseDto,
+          isReady: course.isReady || (updateCourseDto.isReady && true),
           thumbnail_url,
         },
       });
 
-      const oldPublicId = this.cloudinaryService.extractPublicId(
-        course.thumbnail_url,
-      );
-      if (oldPublicId) {
-        this.cloudinaryService.deleteFile(oldPublicId).catch(() => {
-          console.error(`Failed to delete old image: ${oldPublicId}`);
-        });
+      if (imageUrl) {
+        const oldPublicId = this.cloudinaryService.extractPublicId(
+          course.thumbnail_url,
+        );
+        if (oldPublicId) {
+          this.cloudinaryService.deleteFile(oldPublicId).catch(() => {
+            console.error(`Failed to delete old image: ${oldPublicId}`);
+          });
+        }
       }
       return updatedCourse;
     } catch (error) {
@@ -141,6 +181,36 @@ export class CoursesService {
     }
   }
 
+  // admin only
+  async getAllCourses(query: PageLimitDto) {
+    const { page, limit } = query;
+    const { skip, limitt }: { skip: number; limitt: number } = this.calcSkip(
+      page,
+      limit,
+    );
+
+    return await this.prisma.courses.findMany({
+      skip,
+      take: limitt,
+    });
+  }
+  // admin only
+  async getCreatedReadyPendingCourses(query: PageLimitDto) {
+    const { page, limit } = query;
+    const { skip, limitt }: { skip: number; limitt: number } = this.calcSkip(
+      page,
+      limit,
+    );
+
+    return await this.prisma.courses.findMany({
+      where: {
+        isReady: true,
+        status: course_status.Pending,
+      },
+      skip,
+      take: limitt,
+    });
+  }
   // admin only
   async remove(id: string) {
     await this.prisma.courses.delete({ where: { id } });

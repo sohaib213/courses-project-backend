@@ -20,10 +20,10 @@ import { AuthGuard } from 'src/common/guards/authentication.guard';
 import { RoleGuard } from 'src/common/guards/Role.guard';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ImageFilePipe } from 'src/common/pipes/image-file.pipe';
-import { course_status } from '@prisma/client';
 import { ApiKeyGuard } from 'src/common/guards/api-key.guard.ts.guard';
-import type { FindCoursesQuery } from 'src/common/interfaces/findCoursesQuerry';
 import type { ReqWithUser } from 'src/common/interfaces/reqWithUser';
+import { FindCoursesQueryDto } from './dto/find-corse-query.dto';
+import { UpdateStatusDto } from './dto/update-status.dto';
 
 @Controller('courses')
 export class CoursesController {
@@ -46,11 +46,29 @@ export class CoursesController {
   }
 
   @Get()
-  findAll(@Query() querry: FindCoursesQuery) {
-    console.log('querry', querry);
-    if (querry.page) querry.page = Number(querry.page);
-    if (querry.limit) querry.limit = Number(querry.limit);
+  findAll(@Query() querry: FindCoursesQueryDto) {
     return this.coursesService.findAll(querry);
+  }
+
+  @UseGuards(AuthGuard, RoleGuard)
+  @Get('teacher')
+  findTeacherCorses(
+    @Query() querry: FindCoursesQueryDto,
+    @Req() req: ReqWithUser,
+  ) {
+    return this.coursesService.findTeacherCourses(querry, req.currentUser.id);
+  }
+
+  @UseGuards(ApiKeyGuard)
+  @Get('admin/ready')
+  getPendingCourses(@Query() querry: FindCoursesQueryDto) {
+    return this.coursesService.getCreatedReadyPendingCourses(querry);
+  }
+
+  @UseGuards(ApiKeyGuard)
+  @Get('admin')
+  getAllCourses(@Query() querry: FindCoursesQueryDto) {
+    return this.coursesService.getAllCourses(querry);
   }
 
   @Get(':id')
@@ -76,7 +94,7 @@ export class CoursesController {
     );
   }
 
-  @UseGuards(ApiKeyGuard, RoleGuard)
+  @UseGuards(ApiKeyGuard)
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.coursesService.remove(id);
@@ -84,10 +102,7 @@ export class CoursesController {
 
   @UseGuards(ApiKeyGuard)
   @Patch(':id/status/:status')
-  updateCourseStatus(
-    @Param('id') id: string,
-    @Param('status') status: course_status,
-  ) {
-    return this.coursesService.updateCourseStatus(id, status);
+  updateCourseStatus(@Param() params: UpdateStatusDto) {
+    return this.coursesService.updateCourseStatus(params.id, params.status);
   }
 }

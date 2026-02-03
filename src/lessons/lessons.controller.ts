@@ -11,7 +11,6 @@ import {
   BadRequestException,
   UseGuards,
   Req,
-  Query,
 } from '@nestjs/common';
 import { LessonsService } from './lessons.service';
 import { CreateLessonDto } from './dto/create-lesson.dto';
@@ -21,6 +20,7 @@ import { ImageFilePipe } from 'src/common/pipes/image-file.pipe';
 import { VideoFilePipe } from 'src/common/pipes/video-fle.pipe';
 import { RoleGuard } from 'src/common/guards/Role.guard';
 import { AuthGuard } from 'src/common/guards/authentication.guard';
+import type { ReqWithUser } from 'src/common/interfaces/reqWithUser';
 
 @Controller('lessons')
 export class LessonsController {
@@ -72,14 +72,21 @@ export class LessonsController {
     );
   }
 
-  @Get()
-  findAll(@Query() query: { courseId?: string }) {
-    return this.lessonsService.findAll(query.courseId);
+  @UseGuards(AuthGuard)
+  @Get('course/:id')
+  findAll(@Param('id') courseId: string, @Req() req: ReqWithUser) {
+    return this.lessonsService.findAll(courseId, req.currentUser);
   }
 
+  @UseGuards(AuthGuard)
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.lessonsService.findOne(+id);
+  findOne(@Param('id') id: string, @Req() req: ReqWithUser) {
+    return this.lessonsService.findOne(id, req.currentUser);
+  }
+
+  @Get('titles/course/:id')
+  getLessonsTitle(@Param('id') courseId: string) {
+    return this.lessonsService.getLessonsTitle(courseId);
   }
 
   @UseGuards(AuthGuard, RoleGuard)
