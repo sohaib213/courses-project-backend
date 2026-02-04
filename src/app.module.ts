@@ -17,6 +17,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { GlobalExceptionFilter } from './common/filters/globalExceptionFilter';
 import { APP_FILTER } from '@nestjs/core';
 import { QuestionsModule } from './questions/questions.module';
+import { QuizSubmissionsModule } from './submission/submission.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { QuestionsModule } from './questions/questions.module';
     CartModule,
     ScheduleModule.forRoot(),
     QuestionsModule,
+    QuizSubmissionsModule,
   ],
   controllers: [AppController],
   providers: [
