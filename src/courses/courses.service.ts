@@ -11,7 +11,6 @@ import { course_status, user_type } from '@prisma/client';
 import { CourseCoverURL } from 'src/common/assets/defaultPhotos';
 import { FindCoursesQueryDto } from './dto/find-corse-query.dto';
 import { PageLimitDto } from '../common/dtos/page-limit-dto';
-import { assertHasUpdatePayload } from 'src/common/utils/checkDataToUpdate';
 
 @Injectable()
 export class CoursesService {
@@ -144,8 +143,6 @@ export class CoursesService {
         throw new BadRequestException('Failed to upload thumbnail picture');
       }
     }
-
-    assertHasUpdatePayload(updateCourseDto, [imageUrl]);
 
     try {
       const updatedCourse = await this.prisma.courses.update({

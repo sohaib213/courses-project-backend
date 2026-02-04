@@ -24,6 +24,7 @@ import { ApiKeyGuard } from 'src/common/guards/api-key.guard.ts.guard';
 import type { ReqWithUser } from 'src/common/interfaces/reqWithUser';
 import { FindCoursesQueryDto } from './dto/find-corse-query.dto';
 import { UpdateStatusDto } from './dto/update-status.dto';
+import { assertHasUpdatePayload } from 'src/common/utils/checkDataToUpdate';
 
 @Controller('courses')
 export class CoursesController {
@@ -86,6 +87,7 @@ export class CoursesController {
     @UploadedFile(new ImageFilePipe(false))
     file?: Express.Multer.File,
   ) {
+    assertHasUpdatePayload(updateCourseDto, [file]);
     return this.coursesService.update(
       id,
       updateCourseDto,

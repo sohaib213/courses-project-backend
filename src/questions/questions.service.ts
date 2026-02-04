@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
   UnauthorizedException,
@@ -10,7 +11,8 @@ import { PrismaService } from 'prisma/prisma.service';
 import { content_type, question_type } from '@prisma/client';
 import { LessonsService } from 'src/lessons/lessons.service';
 import { JwtPayload } from 'src/common/interfaces/jwtPayload';
-import { assertHasUpdatePayload } from 'src/common/utils/checkDataToUpdate';
+import { AddOptionDto } from './dto/add-option.dto';
+import { UpdateOptionDto } from './dto/update-option.dto';
 
 @Injectable()
 export class QuestionsService {
@@ -48,7 +50,11 @@ export class QuestionsService {
     return lesson;
   }
 
-  async validateQuestionAccess(questionId: string, teacherId: string) {
+  async validateQuestionAccess(
+    questionId: string,
+    teacherId: string,
+    getOptions: boolean = false,
+  ) {
     const question = await this.prisma.questions.findUnique({
       where: { id: questionId },
       include: {
@@ -57,6 +63,7 @@ export class QuestionsService {
             courses: true,
           },
         },
+        options: getOptions,
       },
     });
 
@@ -97,6 +104,14 @@ export class QuestionsService {
       );
     }
 
+    if (
+      createQuestionDto.question_type !== question_type.Essay &&
+      createQuestionDto.model_answer
+    ) {
+      throw new BadRequestException(
+        'Model answer can exist just for essay question',
+      );
+    }
     return await this.prisma.questions.create({
       data: {
         lesson_id: createQuestionDto.lesson_id,
@@ -108,7 +123,10 @@ export class QuestionsService {
   }
 
   async findAll(lesson_id: string, user: JwtPayload) {
-    const lesson = await this.lessonsService.findOne(lesson_id, user);
+    const { lesson, isTeacher } = await this.lessonsService.findOne(
+      lesson_id,
+      user,
+    );
 
     if (lesson.content_type !== content_type.Quiz) {
       throw new BadRequestException('This lesson is not a quiz');
@@ -117,7 +135,13 @@ export class QuestionsService {
     return await this.prisma.questions.findMany({
       where: { lesson_id: lesson_id },
       include: {
-        options: true,
+        options: {
+          select: {
+            id: true,
+            option_text: true,
+            is_correct: isTeacher,
+          },
+        },
       },
     });
   }
@@ -125,7 +149,10 @@ export class QuestionsService {
   async findOne(id: string, user: JwtPayload) {
     const question = await this.prisma.questions.findUnique({
       where: { id },
-      include: { lessons: true, options: true },
+      include: {
+        lessons: true,
+        options: true,
+      },
     });
 
     if (!question) {
@@ -136,8 +163,17 @@ export class QuestionsService {
       throw new NotFoundException('Lesson not found for this question');
     }
 
-    // Reuse lesson authorization
-    await this.lessonsService.findOne(question.lessons.id, user);
+    const { isTeacher } = await this.lessonsService.findOne(
+      question.lessons.id,
+      user,
+    );
+
+    if (!isTeacher) {
+      question.options.map((option) => ({
+        id: option.id,
+        option_text: option.option_text,
+      }));
+    }
 
     return question;
   }
@@ -148,8 +184,6 @@ export class QuestionsService {
     teacherId: string,
   ) {
     await this.validateQuestionAccess(id, teacherId);
-
-    assertHasUpdatePayload(updateQuestionDto);
 
     return await this.prisma.questions.update({
       where: { id },
@@ -165,5 +199,87 @@ export class QuestionsService {
     await this.prisma.questions.delete({ where: { id } });
 
     return { message: 'Question deleted successfully' };
+  }
+
+  async addOption(
+    question_id: string,
+    addOptionDto: AddOptionDto,
+    teacherId: string,
+  ) {
+    const question = await this.validateQuestionAccess(
+      question_id,
+      teacherId,
+      true,
+    );
+
+    if (question.question_type === question_type.Essay)
+      throw new BadRequestException("can't add options to essay questions");
+    if (addOptionDto.is_correct) {
+      const correctOption = question.options.find(
+        (option) => option.is_correct,
+      );
+      if (correctOption)
+        throw new BadRequestException(
+          'there is already correct option for this question',
+        );
+    }
+
+    return await this.prisma.options.create({
+      data: {
+        question_id,
+        option_text: addOptionDto.option_text,
+        is_correct: addOptionDto.is_correct,
+      },
+    });
+  }
+
+  async deleteOption(id: string, teacher_id: string) {
+    const option = await this.prisma.options.findUnique({
+      where: { id },
+    });
+
+    if (!option) throw new NotFoundException('option with id not found');
+
+    await this.validateQuestionAccess(option.question_id, teacher_id);
+
+    await this.prisma.options.delete({ where: { id } });
+
+    return { message: 'option deleted successfully' };
+  }
+
+  async updateOption(
+    id: string,
+    teacher_id: string,
+    updateOptionDto: UpdateOptionDto,
+  ) {
+    const option = await this.prisma.options.findUnique({
+      where: { id },
+    });
+
+    if (!option) throw new NotFoundException('option with id not found');
+
+    const question = await this.validateQuestionAccess(
+      option.question_id,
+      teacher_id,
+      true,
+    );
+
+    if (
+      updateOptionDto.is_correct !== undefined &&
+      updateOptionDto.is_correct
+    ) {
+      const hasCorrectOption = question.options.some(
+        (option) => option.is_correct && option.id !== id,
+      );
+      if (hasCorrectOption)
+        throw new ForbiddenException(
+          'This question already has a correct option',
+        );
+    }
+
+    return this.prisma.options.update({
+      where: { id },
+      data: updateOptionDto,
+    });
   }
 }

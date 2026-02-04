@@ -11,6 +11,7 @@ import {
 import { CategoriesService } from './categories.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { ApiKeyGuard } from 'src/common/guards/api-key.guard.ts.guard';
+import { assertHasUpdatePayload } from 'src/common/utils/checkDataToUpdate';
 
 @Controller('categories')
 export class CategoriesController {
@@ -35,6 +36,7 @@ export class CategoriesController {
   @UseGuards(ApiKeyGuard)
   @Patch(':id')
   update(@Param('id') id: string, @Body() body: { name: string }) {
+    assertHasUpdatePayload(body);
     return this.categoriesService.update(id, body.name);
   }
 

@@ -10,7 +10,6 @@ import { CloudinaryService } from 'src/cloudinary/cloudinary.service';
 import { PrismaService } from 'prisma/prisma.service';
 import { content_type, user_type } from '@prisma/client';
 import { JwtPayload } from 'src/common/interfaces/jwtPayload';
-import { assertHasUpdatePayload } from 'src/common/utils/checkDataToUpdate';
 
 @Injectable()
 export class LessonsService {
@@ -186,7 +185,7 @@ export class LessonsService {
       throw new UnauthorizedException('This lesson is not ready yet');
     }
 
-    return lesson;
+    return { lesson, isTeacher };
   }
 
   getLessonsTitle(courseId: string) {
@@ -204,8 +203,6 @@ export class LessonsService {
     video?: Express.Multer.File,
     thumbnailPic?: Express.Multer.File,
   ) {
-    assertHasUpdatePayload(updateLessonDto, [video, thumbnailPic]);
-
     const lesson = await this.prisma.lessons.findUnique({
       where: { id },
     });

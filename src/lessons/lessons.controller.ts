@@ -21,6 +21,7 @@ import { VideoFilePipe } from 'src/common/pipes/video-fle.pipe';
 import { RoleGuard } from 'src/common/guards/Role.guard';
 import { AuthGuard } from 'src/common/guards/authentication.guard';
 import type { ReqWithUser } from 'src/common/interfaces/reqWithUser';
+import { assertHasUpdatePayload } from 'src/common/utils/checkDataToUpdate';
 
 @Controller('lessons')
 export class LessonsController {
@@ -79,8 +80,8 @@ export class LessonsController {
 
   @UseGuards(AuthGuard)
   @Get(':id')
-  findOne(@Param('id') id: string, @Req() req: ReqWithUser) {
-    return this.lessonsService.findOne(id, req.currentUser);
+  async findOne(@Param('id') id: string, @Req() req: ReqWithUser) {
+    return (await this.lessonsService.findOne(id, req.currentUser)).lesson;
   }
 
   @Get('titles/course/:id')
@@ -126,6 +127,8 @@ export class LessonsController {
         throw new BadRequestException('Invalid thumbnail file');
       }
     }
+
+    assertHasUpdatePayload(updateLessonDto, [video, thumbnailPic]);
 
     return this.lessonsService.update(
       id,
