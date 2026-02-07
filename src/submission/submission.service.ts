@@ -11,18 +11,21 @@ import { LessonsService } from 'src/lessons/lessons.service';
 import {
   answers,
   essay_answers,
+  graded_by_type,
   mcq_tf_answers,
   options,
   question_type,
   questions,
   submissions,
 } from '@prisma/client';
+import { AiService } from 'src/ai/ai.service';
 
 @Injectable()
 export class QuizSubmissionsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly lessonService: LessonsService,
+    private readonly aiService: AiService,
   ) {}
 
   async submitQuiz(submitDto: SubmitDto, student: JwtPayload) {
@@ -48,7 +51,7 @@ export class QuizSubmissionsService {
     if (existing)
       throw new BadRequestException('You have already submitted this lesson');
 
-    const submission = await this.prisma.$transaction(async (tx) => {
+    const gradedSubmission = await this.prisma.$transaction(async (tx) => {
       // 1️⃣ Create submission
       const createdSubmission = await tx.submissions.create({
         data: {
@@ -58,7 +61,9 @@ export class QuizSubmissionsService {
         },
       });
 
-      // 2️⃣ Create answers + nested essay/mcq
+      let totalGrade = 0;
+
+      // 2️⃣ Create answers + nested essay/mcq + AI grading
       for (const answer of submitDto.answers) {
         const question = await tx.questions.findUnique({
           where: { id: answer.question_id },
@@ -68,28 +73,25 @@ export class QuizSubmissionsService {
             `Question ${answer.question_id} not found`,
           );
 
-        // Check type consistency
+        // Type consistency checks
         if (
-          question.question_type === question_type.MultipleChoice ||
-          question.question_type === question_type.TrueFalse
+          (question.question_type === question_type.MultipleChoice ||
+            question.question_type === question_type.TrueFalse) &&
+          (!answer.mcq_tf_answer || answer.essay_answer)
         ) {
-          if (!answer.mcq_tf_answer || answer.essay_answer) {
-            throw new BadRequestException(
-              `Question ${answer.question_id} is ${question.question_type}, so you must provide a mcq_tf_answer only`,
-            );
-          }
-        } else if (question.question_type === question_type.Essay) {
-          if (!answer.essay_answer || answer.mcq_tf_answer) {
-            throw new BadRequestException(
-              `Question ${answer.question_id} is an essay, so you must provide an essay_answer only`,
-            );
-          }
-        } else {
           throw new BadRequestException(
-            `Unknown question type for question ${answer.question_id}`,
+            `Question ${answer.question_id} is ${question.question_type}, so you must provide a mcq_tf_answer only`,
+          );
+        } else if (
+          question.question_type === question_type.Essay &&
+          (!answer.essay_answer || answer.mcq_tf_answer)
+        ) {
+          throw new BadRequestException(
+            `Question ${answer.question_id} is an essay, so you must provide an essay_answer only`,
           );
         }
 
+        // Create answer
         const createdAnswer = await tx.answers.create({
           data: {
             submission_id: createdSubmission.id,
@@ -97,6 +99,7 @@ export class QuizSubmissionsService {
           },
         });
 
+        // Essay answer
         if (answer.essay_answer) {
           await tx.essay_answers.create({
             data: {
@@ -104,93 +107,88 @@ export class QuizSubmissionsService {
               answer_text: answer.essay_answer.answer_text,
             },
           });
+
+          // AI grading inside transaction
+          if (question.model_answer) {
+            const aiResult = await this.aiService.gradeEssay({
+              questionText: question.question_text,
+              modelAnswer: question.model_answer,
+              studentAnswer: answer.essay_answer.answer_text,
+              maxScore: 5,
+            });
+
+            // Update answer + essay_answers
+            await tx.answers.update({
+              where: { id: createdAnswer.id },
+              data: {
+                graded_by: 'AI',
+                graded_at: new Date(),
+                essay_answers: {
+                  update: {
+                    ai_score: aiResult.score,
+                    ai_feedback: aiResult.feedback,
+                    similarity_score: aiResult.similarity,
+                  },
+                },
+              },
+            });
+
+            totalGrade += aiResult.score;
+          }
         }
 
+        // MCQ/TF answer
         if (answer.mcq_tf_answer) {
           const option = await tx.options.findUnique({
             where: { id: answer.mcq_tf_answer.selected_option_id },
           });
 
-          if (!option) {
-            throw new NotFoundException(
-              `Option ${answer.mcq_tf_answer.selected_option_id} not found`,
-            );
-          }
-
-          if (option.question_id !== answer.question_id) {
+          if (!option) throw new NotFoundException(`Option not found`);
+          if (option.question_id !== answer.question_id)
             throw new BadRequestException(
-              `Option ${answer.mcq_tf_answer.selected_option_id} does not belong to question ${answer.question_id}`,
+              `Option does not belong to this question`,
             );
-          }
 
-          // 4️⃣ Create mcq_tf_answer
           await tx.mcq_tf_answers.create({
             data: {
               answer_id: createdAnswer.id,
               selected_option_id: answer.mcq_tf_answer.selected_option_id,
             },
           });
+
+          // Auto-grade MCQ
+          if (option.is_correct) totalGrade += 1;
+
+          // Mark graded
+          await tx.answers.update({
+            where: { id: createdAnswer.id },
+            data: {
+              graded_by: 'AI',
+              graded_at: new Date(),
+            },
+          });
         }
       }
 
-      return createdSubmission;
-    });
+      // 3️⃣ Update total grade
+      const finalSubmission = await tx.submissions.update({
+        where: { id: createdSubmission.id },
+        data: { grade: totalGrade },
+        include: {
+          answers: {
+            include: {
+              mcq_tf_answers: true,
+              essay_answers: true,
+              questions: true,
+            },
+          },
+        },
+      });
 
-    // 3️⃣ Auto-grade MCQs and calculate total grade
-    const gradedSubmission = await this.gradeSubmission(submission.id);
+      return finalSubmission;
+    });
 
     return gradedSubmission;
-  }
-
-  async gradeSubmission(submissionId: string) {
-    const submission = await this.prisma.submissions.findUnique({
-      where: { id: submissionId },
-      include: {
-        answers: {
-          include: {
-            mcq_tf_answers: { include: { options: true } },
-            essay_answers: true,
-            questions: true,
-          },
-        },
-      },
-    });
-
-    if (!submission) throw new NotFoundException('Submission not found');
-
-    let totalGrade = 0;
-
-    for (const answer of submission.answers) {
-      if (answer.mcq_tf_answers) {
-        answer.mcq_tf_answers['isCorrect'] =
-          answer.mcq_tf_answers.options?.is_correct ?? false;
-        if (answer.mcq_tf_answers['isCorrect']) totalGrade += 1; // correct
-      } else if (answer.essay_answers) {
-        // grade essay (AI/manual)
-        totalGrade += answer.essay_answers.ai_score ?? 0;
-      } else {
-        throw new BadRequestException(
-          `Answer for question ${answer.question_id} must be either mcq_tf_answer or essay_answer`,
-        );
-      }
-    }
-
-    // Update submission grade
-    const updatedSubmission = await this.prisma.submissions.update({
-      where: { id: submission.id },
-      data: { grade: totalGrade },
-      include: {
-        answers: {
-          include: {
-            mcq_tf_answers: true,
-            essay_answers: true,
-            questions: true,
-          },
-        },
-      },
-    });
-
-    return updatedSubmission;
   }
 
   async getQuizSubmission(lessonId: string, user: JwtPayload) {

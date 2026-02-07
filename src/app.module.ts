@@ -18,6 +18,7 @@ import { GlobalExceptionFilter } from './common/filters/globalExceptionFilter';
 import { APP_FILTER } from '@nestjs/core';
 import { QuestionsModule } from './questions/questions.module';
 import { QuizSubmissionsModule } from './submission/submission.module';
+import { AiModule } from './ai/ai.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { QuizSubmissionsModule } from './submission/submission.module';
     ScheduleModule.forRoot(),
     QuestionsModule,
     QuizSubmissionsModule,
+    AiModule,
   ],
   controllers: [AppController],
   providers: [
