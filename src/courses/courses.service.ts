@@ -62,11 +62,10 @@ export class CoursesService {
   }
 
   async findAll(querry: FindCoursesQueryDto) {
-    const { teacher_id, category_id } = querry;
-    const { page, limit } = querry;
+    const { teacher_id, category_id, title_description_search } = querry;
     const { skip, limitt }: { skip: number; limitt: number } = this.calcSkip(
-      page,
-      limit,
+      querry.page,
+      querry.limit,
     );
 
     // console.log('Query params:', { teacher_id, category_id, page, limit });
@@ -81,12 +80,30 @@ export class CoursesService {
         throw new BadRequestException('invalid teacher id');
       }
     }
+
     return await this.prisma.courses.findMany({
       where: {
         teacher_id,
         category_id,
         isReady: true,
         status: course_status.Approved,
+
+        ...(title_description_search && {
+          OR: [
+            {
+              title: {
+                contains: title_description_search,
+                mode: 'insensitive',
+              },
+            },
+            {
+              description: {
+                contains: title_description_search,
+                mode: 'insensitive',
+              },
+            },
+          ],
+        }),
       },
       skip,
       take: limitt,
