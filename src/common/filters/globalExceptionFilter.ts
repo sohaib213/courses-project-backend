@@ -42,6 +42,11 @@ export class GlobalExceptionFilter implements ExceptionFilter {
           statusCode = HttpStatus.BAD_REQUEST;
           message = 'Invalid database request';
       }
+      console.error('Prisma Error:', {
+        code: exception.code,
+        meta: exception.meta,
+        message: exception.message,
+      });
     }
 
     if (exception instanceof Prisma.PrismaClientValidationError) {

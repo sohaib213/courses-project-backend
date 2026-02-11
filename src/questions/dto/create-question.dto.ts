@@ -1,5 +1,13 @@
 import { question_type } from '@prisma/client';
-import { IsEnum, IsOptional, IsString, IsUUID } from 'class-validator';
+import { Type } from 'class-transformer';
+import {
+  IsEnum,
+  IsNumber,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Min,
+} from 'class-validator';
 
 export class CreateQuestionDto {
   @IsUUID()
@@ -7,6 +15,11 @@ export class CreateQuestionDto {
 
   @IsString()
   question_text: string;
+
+  @Type(() => Number)
+  @IsNumber()
+  @Min(1)
+  question_grade: number;
 
   @IsEnum(question_type)
   question_type: question_type;

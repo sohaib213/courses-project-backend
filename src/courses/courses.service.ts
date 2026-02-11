@@ -69,6 +69,7 @@ export class CoursesService {
       limit,
     );
 
+    // console.log('Query params:', { teacher_id, category_id, page, limit });
     if (teacher_id) {
       const teacher = await this.prisma.users.findUnique({
         where: {

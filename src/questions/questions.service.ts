@@ -112,14 +112,26 @@ export class QuestionsService {
         'Model answer can exist just for essay question',
       );
     }
-    return await this.prisma.questions.create({
+    const question = await this.prisma.questions.create({
       data: {
         lesson_id: createQuestionDto.lesson_id,
         question_text: createQuestionDto.question_text,
         question_type: createQuestionDto.question_type,
         model_answer: createQuestionDto.model_answer,
+        question_grade: createQuestionDto.question_grade,
       },
     });
+
+    await this.prisma.lessons.update({
+      where: { id: createQuestionDto.lesson_id },
+      data: {
+        quiz_grade: {
+          increment: createQuestionDto.question_grade || 0,
+        },
+      },
+    });
+
+    return question;
   }
 
   async findAll(lesson_id: string, user: JwtPayload) {
@@ -134,7 +146,12 @@ export class QuestionsService {
 
     return await this.prisma.questions.findMany({
       where: { lesson_id: lesson_id },
-      include: {
+      select: {
+        id: true,
+        question_text: true,
+        question_type: true,
+        model_answer: isTeacher,
+        question_grade: true,
         options: {
           select: {
             id: true,

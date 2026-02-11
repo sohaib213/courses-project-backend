@@ -11,7 +11,6 @@ import { LessonsService } from 'src/lessons/lessons.service';
 import {
   answers,
   essay_answers,
-  graded_by_type,
   mcq_tf_answers,
   options,
   question_type,
@@ -29,7 +28,7 @@ export class QuizSubmissionsService {
   ) {}
 
   async submitQuiz(submitDto: SubmitDto, student: JwtPayload) {
-    const { isTeacher } = await this.lessonService.findOne(
+    const { isTeacher, lesson } = await this.lessonService.findOne(
       submitDto.lesson_id,
       student,
     );
@@ -40,7 +39,7 @@ export class QuizSubmissionsService {
       );
     }
 
-    const existing = await this.prisma.submissions.findUnique({
+    const existingQuizSubmit = await this.prisma.submissions.findUnique({
       where: {
         lesson_id_student_id: {
           lesson_id: submitDto.lesson_id,
@@ -48,7 +47,7 @@ export class QuizSubmissionsService {
         },
       },
     });
-    if (existing)
+    if (existingQuizSubmit)
       throw new BadRequestException('You have already submitted this lesson');
 
     const gradedSubmission = await this.prisma.$transaction(async (tx) => {
@@ -99,6 +98,8 @@ export class QuizSubmissionsService {
           },
         });
 
+        const question_grade: number = (question.question_grade as number) || 1;
+
         // Essay answer
         if (answer.essay_answer) {
           await tx.essay_answers.create({
@@ -114,7 +115,7 @@ export class QuizSubmissionsService {
               questionText: question.question_text,
               modelAnswer: question.model_answer,
               studentAnswer: answer.essay_answer.answer_text,
-              maxScore: 5,
+              maxScore: question_grade,
             });
 
             // Update answer + essay_answers
@@ -157,7 +158,7 @@ export class QuizSubmissionsService {
           });
 
           // Auto-grade MCQ
-          if (option.is_correct) totalGrade += 1;
+          if (option.is_correct) totalGrade += question_grade;
 
           // Mark graded
           await tx.answers.update({
@@ -188,7 +189,7 @@ export class QuizSubmissionsService {
       return finalSubmission;
     });
 
-    return gradedSubmission;
+    return { ...gradedSubmission, quize_grade: lesson.quiz_grade as number };
   }
 
   async getQuizSubmission(lessonId: string, user: JwtPayload) {
@@ -240,7 +241,6 @@ export class QuizSubmissionsService {
               essay_answers: true,
             },
           },
-          users: true,
         },
       });
 
@@ -259,6 +259,6 @@ export class QuizSubmissionsService {
       });
     });
 
-    return submisions;
+    return { submisions, quize_grade: lesson.quiz_grade as number };
   }
 }
