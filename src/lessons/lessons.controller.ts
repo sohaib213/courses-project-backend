@@ -22,6 +22,7 @@ import { RoleGuard } from 'src/common/guards/Role.guard';
 import { AuthGuard } from 'src/common/guards/authentication.guard';
 import type { ReqWithUser } from 'src/common/interfaces/reqWithUser';
 import { assertHasUpdatePayload } from 'src/common/utils/checkDataToUpdate';
+import { IdParamDto } from 'src/common/dtos/idParam.dto';
 
 @Controller('lessons')
 export class LessonsController {
@@ -74,18 +75,18 @@ export class LessonsController {
 
   @UseGuards(AuthGuard)
   @Get('course/:id')
-  findAll(@Param('id') courseId: string, @Req() req: ReqWithUser) {
+  findAll(@Param() { id: courseId }: IdParamDto, @Req() req: ReqWithUser) {
     return this.lessonsService.findAll(courseId, req.currentUser);
   }
 
   @UseGuards(AuthGuard)
   @Get(':id')
-  async findOne(@Param('id') id: string, @Req() req: ReqWithUser) {
+  async findOne(@Param() { id }: IdParamDto, @Req() req: ReqWithUser) {
     return (await this.lessonsService.findOne(id, req.currentUser)).lesson;
   }
 
   @Get('titles/course/:id')
-  getLessonsTitle(@Param('id') courseId: string) {
+  getLessonsTitle(@Param() { id: courseId }: IdParamDto) {
     return this.lessonsService.getLessonsTitle(courseId);
   }
 
@@ -98,7 +99,7 @@ export class LessonsController {
     ]),
   )
   async update(
-    @Param('id') id: string,
+    @Param() { id }: IdParamDto,
     @Body() updateLessonDto: UpdateLessonDto,
     @Req() req: ReqWithUser,
     @UploadedFiles()
@@ -141,7 +142,7 @@ export class LessonsController {
 
   @UseGuards(AuthGuard, RoleGuard)
   @Delete(':id')
-  remove(@Param('id') id: string, @Req() req: ReqWithUser) {
+  remove(@Param() { id }: IdParamDto, @Req() req: ReqWithUser) {
     return this.lessonsService.remove(id, req.currentUser.id);
   }
 }

@@ -12,6 +12,7 @@ import { CategoriesService } from './categories.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { ApiKeyGuard } from 'src/common/guards/api-key.guard.ts.guard';
 import { assertHasUpdatePayload } from 'src/common/utils/checkDataToUpdate';
+import { IdParamDto } from 'src/common/dtos/idParam.dto';
 
 @Controller('categories')
 export class CategoriesController {
@@ -29,20 +30,20 @@ export class CategoriesController {
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
+  findOne(@Param() { id }: IdParamDto) {
     return this.categoriesService.findOne(id);
   }
 
   @UseGuards(ApiKeyGuard)
   @Patch(':id')
-  update(@Param('id') id: string, @Body() body: { name: string }) {
+  update(@Param() { id }: IdParamDto, @Body() body: { name: string }) {
     assertHasUpdatePayload(body);
     return this.categoriesService.update(id, body.name);
   }
 
   @UseGuards(ApiKeyGuard)
   @Delete(':id')
-  remove(@Param('id') id: string) {
+  remove(@Param() { id }: IdParamDto) {
     return this.categoriesService.remove(id);
   }
 }

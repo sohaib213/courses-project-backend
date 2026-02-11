@@ -62,11 +62,14 @@ export class QuizSubmissionsService {
 
       let totalGrade = 0;
 
+      const questions = await tx.questions.findMany({
+        where: { lesson_id: submitDto.lesson_id },
+      });
+
+      const questionsMap = new Map(questions.map((q) => [q.id, q]));
       // 2️⃣ Create answers + nested essay/mcq + AI grading
       for (const answer of submitDto.answers) {
-        const question = await tx.questions.findUnique({
-          where: { id: answer.question_id },
-        });
+        const question = questionsMap.get(answer.question_id);
         if (!question)
           throw new NotFoundException(
             `Question ${answer.question_id} not found`,
@@ -98,7 +101,7 @@ export class QuizSubmissionsService {
           },
         });
 
-        const question_grade: number = (question.question_grade as number) || 1;
+        const question_grade: number = question.question_grade || 1;
 
         // Essay answer
         if (answer.essay_answer) {
@@ -122,7 +125,6 @@ export class QuizSubmissionsService {
             await tx.answers.update({
               where: { id: createdAnswer.id },
               data: {
-                graded_by: 'AI',
                 graded_at: new Date(),
                 essay_answers: {
                   update: {
@@ -164,7 +166,6 @@ export class QuizSubmissionsService {
           await tx.answers.update({
             where: { id: createdAnswer.id },
             data: {
-              graded_by: 'AI',
               graded_at: new Date(),
             },
           });
@@ -189,7 +190,7 @@ export class QuizSubmissionsService {
       return finalSubmission;
     });
 
-    return { ...gradedSubmission, quize_grade: lesson.quiz_grade as number };
+    return { ...gradedSubmission, quize_grade: lesson.quiz_grade };
   }
 
   async getQuizSubmission(lessonId: string, user: JwtPayload) {
@@ -259,6 +260,6 @@ export class QuizSubmissionsService {
       });
     });
 
-    return { submisions, quize_grade: lesson.quiz_grade as number };
+    return { submisions, quize_grade: lesson.quiz_grade };
   }
 }

@@ -1,6 +1,5 @@
 import {
   BadRequestException,
-  ForbiddenException,
   Injectable,
   NotFoundException,
   UnauthorizedException,
@@ -8,7 +7,7 @@ import {
 import { CreateQuestionDto } from './dto/create-question.dto';
 import { UpdateQuestionDto } from './dto/update-question.dto';
 import { PrismaService } from 'prisma/prisma.service';
-import { content_type, question_type } from '@prisma/client';
+import { content_type, options, question_type } from '@prisma/client';
 import { LessonsService } from 'src/lessons/lessons.service';
 import { JwtPayload } from 'src/common/interfaces/jwtPayload';
 import { AddOptionDto } from './dto/add-option.dto';
@@ -92,7 +91,10 @@ export class QuestionsService {
     return question;
   }
 
-  async create(createQuestionDto: CreateQuestionDto, teacher_id: string) {
+  async createQuestion(
+    createQuestionDto: CreateQuestionDto,
+    teacher_id: string,
+  ) {
     await this.validateLessonAccess(createQuestionDto.lesson_id, teacher_id);
 
     if (
@@ -112,6 +114,62 @@ export class QuestionsService {
         'Model answer can exist just for essay question',
       );
     }
+
+    if (
+      createQuestionDto.question_type !== question_type.Essay &&
+      createQuestionDto.options?.length === 0
+    ) {
+      throw new BadRequestException(
+        'Options are required for non-essay questions',
+      );
+    }
+
+    if (
+      createQuestionDto.question_type === question_type.Essay &&
+      createQuestionDto.options &&
+      createQuestionDto.options.length > 0
+    ) {
+      throw new BadRequestException(
+        'Options are not allowed for essay questions',
+      );
+    }
+
+    if (createQuestionDto.question_type === question_type.MultipleChoice) {
+      const hasCorrectOption = createQuestionDto.options?.filter(
+        (option) => option.is_correct,
+      );
+      if (hasCorrectOption.length === 0)
+        throw new BadRequestException(
+          'At least one correct option is required for multiple choice questions',
+        );
+      if (hasCorrectOption.length > 1)
+        throw new BadRequestException(
+          'Only one correct option is allowed for multiple choice questions',
+        );
+    }
+
+    if (createQuestionDto.question_type === question_type.TrueFalse) {
+      if (
+        !createQuestionDto.options ||
+        createQuestionDto.options.length !== 2
+      ) {
+        throw new BadRequestException(
+          'Exactly two options are required for true/false questions',
+        );
+      }
+      const correctOptions = createQuestionDto.options?.filter(
+        (option) => option.is_correct,
+      );
+      if (correctOptions.length === 0)
+        throw new BadRequestException(
+          'One correct option is required for true/false questions',
+        );
+      if (correctOptions.length > 1)
+        throw new BadRequestException(
+          'Only one correct option is allowed for true/false questions',
+        );
+    }
+
     const question = await this.prisma.questions.create({
       data: {
         lesson_id: createQuestionDto.lesson_id,
@@ -119,6 +177,14 @@ export class QuestionsService {
         question_type: createQuestionDto.question_type,
         model_answer: createQuestionDto.model_answer,
         question_grade: createQuestionDto.question_grade,
+        options: createQuestionDto.options
+          ? {
+              create: createQuestionDto.options.map((option) => ({
+                option_text: option.option_text,
+                is_correct: option.is_correct,
+              })),
+            }
+          : undefined,
       },
     });
 
@@ -200,8 +266,20 @@ export class QuestionsService {
     updateQuestionDto: UpdateQuestionDto,
     teacherId: string,
   ) {
-    await this.validateQuestionAccess(id, teacherId);
+    const question = await this.validateQuestionAccess(id, teacherId);
 
+    if (updateQuestionDto.question_grade) {
+      const gradeDifference =
+        updateQuestionDto.question_grade - (question.question_grade || 0);
+      await this.prisma.lessons.update({
+        where: { id: question.lesson_id },
+        data: {
+          quiz_grade: {
+            increment: gradeDifference,
+          },
+        },
+      });
+    }
     return await this.prisma.questions.update({
       where: { id },
       data: {
@@ -210,10 +288,21 @@ export class QuestionsService {
     });
   }
 
-  async remove(id: string, teacher_id: string) {
-    await this.validateQuestionAccess(id, teacher_id);
+  async removeQuestion(id: string, teacher_id: string) {
+    const question = await this.validateQuestionAccess(id, teacher_id);
 
     await this.prisma.questions.delete({ where: { id } });
+
+    await this.prisma.lessons.update({
+      where: {
+        id: question.lesson_id,
+      },
+      data: {
+        quiz_grade: {
+          decrement: question.question_grade || 0,
+        },
+      },
+    });
 
     return { message: 'Question deleted successfully' };
   }
@@ -231,21 +320,11 @@ export class QuestionsService {
 
     if (question.question_type === question_type.Essay)
       throw new BadRequestException("can't add options to essay questions");
-    if (addOptionDto.is_correct) {
-      const correctOption = question.options.find(
-        (option) => option.is_correct,
-      );
-      if (correctOption)
-        throw new BadRequestException(
-          'there is already correct option for this question',
-        );
-    }
 
     return await this.prisma.options.create({
       data: {
         question_id,
         option_text: addOptionDto.option_text,
-        is_correct: addOptionDto.is_correct,
       },
     });
   }
@@ -257,6 +336,11 @@ export class QuestionsService {
 
     if (!option) throw new NotFoundException('option with id not found');
 
+    if (option.is_correct) {
+      throw new BadRequestException(
+        'Cannot delete a correct option. Please update the question to have another correct option before deleting this one.',
+      );
+    }
     await this.validateQuestionAccess(option.question_id, teacher_id);
 
     await this.prisma.options.delete({ where: { id } });
@@ -280,23 +364,75 @@ export class QuestionsService {
       teacher_id,
       true,
     );
-
-    if (
-      updateOptionDto.is_correct !== undefined &&
-      updateOptionDto.is_correct
-    ) {
-      const hasCorrectOption = question.options.some(
-        (option) => option.is_correct && option.id !== id,
-      );
-      if (hasCorrectOption)
-        throw new ForbiddenException(
-          'This question already has a correct option',
-        );
-    }
+    if (question.question_type === question_type.Essay)
+      throw new BadRequestException("can't update options of essay questions");
 
     return this.prisma.options.update({
       where: { id },
       data: updateOptionDto,
     });
+  }
+
+  async changeCorrectOption(
+    question_id: string,
+    teacher_id: string,
+    new_correct_option_id: string,
+  ) {
+    const question = await this.validateQuestionAccess(
+      question_id,
+      teacher_id,
+      true,
+    );
+    if (question.question_type === question_type.Essay)
+      throw new BadRequestException(
+        "can't change correct option for essay questions",
+      );
+
+    const newCorrectOption = question.options.find(
+      (option) => option.id === new_correct_option_id,
+    );
+
+    if (!newCorrectOption) {
+      throw new NotFoundException(
+        'New correct option not found in this question',
+      );
+    }
+
+    const currentCorrectOption = question.options.find(
+      (option) => option.is_correct,
+    );
+
+    const transactionOperations = [];
+
+    if (!currentCorrectOption) {
+      transactionOperations.push(
+        this.prisma.options.update({
+          where: { id: new_correct_option_id },
+          data: { is_correct: true },
+        }),
+      );
+    } else {
+      if (currentCorrectOption.id === new_correct_option_id) {
+        return {
+          message:
+            'No change needed - the correct option is already set to the requested value',
+        };
+      }
+      transactionOperations.push(
+        this.prisma.options.update({
+          where: { id: currentCorrectOption.id },
+          data: { is_correct: false },
+        }),
+      );
+
+      transactionOperations.push(
+        this.prisma.options.update({
+          where: { id: new_correct_option_id },
+          data: { is_correct: true },
+        }),
+      );
+    }
+
+    return (await this.prisma.$transaction(transactionOperations)) as options[];
   }
 }

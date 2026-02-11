@@ -25,6 +25,7 @@ import type { ReqWithUser } from 'src/common/interfaces/reqWithUser';
 import { FindCoursesQueryDto } from './dto/find-corse-query.dto';
 import { UpdateStatusDto } from './dto/update-status.dto';
 import { assertHasUpdatePayload } from 'src/common/utils/checkDataToUpdate';
+import { IdParamDto } from 'src/common/dtos/idParam.dto';
 
 @Controller('courses')
 export class CoursesController {
@@ -73,7 +74,7 @@ export class CoursesController {
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
+  findOne(@Param() { id }: IdParamDto) {
     return this.coursesService.findOne(id);
   }
 
@@ -81,7 +82,7 @@ export class CoursesController {
   @UseInterceptors(FileInterceptor('thumbnailPic'))
   @Patch(':id')
   update(
-    @Param('id') id: string,
+    @Param() { id }: IdParamDto,
     @Body() updateCourseDto: UpdateCourseDto,
     @Req() req: ReqWithUser,
     @UploadedFile(new ImageFilePipe(false))
@@ -98,7 +99,7 @@ export class CoursesController {
 
   @UseGuards(ApiKeyGuard)
   @Delete(':id')
-  remove(@Param('id') id: string) {
+  remove(@Param() { id }: IdParamDto) {
     return this.coursesService.remove(id);
   }
 

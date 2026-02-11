@@ -16,6 +16,7 @@ import type { ReqWithUser } from 'src/common/interfaces/reqWithUser';
 import { AuthGuard } from 'src/common/guards/authentication.guard';
 import { ConfigService } from '@nestjs/config';
 import Stripe from 'stripe';
+import { IdParamDto } from 'src/common/dtos/idParam.dto';
 
 @Controller('carts')
 export class CartController {
@@ -52,13 +53,13 @@ export class CartController {
 
   @UseGuards(AuthGuard)
   @Get(':id')
-  findOne(@Param('id') id: string, @Req() req: ReqWithUser) {
+  findOne(@Param() { id }: IdParamDto, @Req() req: ReqWithUser) {
     return this.cartService.findCartById(id, req.currentUser.id);
   }
 
   @UseGuards(AuthGuard)
   @Delete(':id')
-  remove(@Param('id') id: string, @Req() req: ReqWithUser) {
+  remove(@Param() { id }: IdParamDto, @Req() req: ReqWithUser) {
     return this.cartService.removeItem(id, req.currentUser.id);
   }
 
@@ -73,7 +74,10 @@ export class CartController {
 
   @UseGuards(AuthGuard)
   @Get(':id/items')
-  findItemsInCart(@Req() req: ReqWithUser, @Param('id') cart_id: string) {
+  findItemsInCart(
+    @Req() req: ReqWithUser,
+    @Param() { id: cart_id }: IdParamDto,
+  ) {
     return this.cartService.findItemsInCart(cart_id, req.currentUser.id);
   }
 

@@ -14,6 +14,7 @@ import { CreateMessageDto } from './dto/create-message.dto';
 import { UpdateMessageDto } from './dto/update-message.dto';
 import { AuthGuard } from 'src/common/guards/authentication.guard';
 import type { ReqWithUser } from 'src/common/interfaces/reqWithUser';
+import { IdParamDto } from 'src/common/dtos/idParam.dto';
 
 @Controller('messages')
 export class MessagesController {
@@ -31,17 +32,20 @@ export class MessagesController {
   // }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
+  findOne(@Param() { id }: IdParamDto) {
     return this.messagesService.findOne(+id);
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateMessageDto: UpdateMessageDto) {
+  update(
+    @Param() { id }: IdParamDto,
+    @Body() updateMessageDto: UpdateMessageDto,
+  ) {
     return this.messagesService.update(+id, updateMessageDto);
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
+  remove(@Param() { id }: IdParamDto) {
     return this.messagesService.remove(+id);
   }
 }

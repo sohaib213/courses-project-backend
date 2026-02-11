@@ -18,6 +18,8 @@ import type { ReqWithUser } from 'src/common/interfaces/reqWithUser';
 import { AddOptionDto } from './dto/add-option.dto';
 import { assertHasUpdatePayload } from 'src/common/utils/checkDataToUpdate';
 import { UpdateOptionDto } from './dto/update-option.dto';
+import { ChangeCorrectOptionDto } from './dto/ChangeCorrectOptionDto';
+import { IdParamDto } from 'src/common/dtos/idParam.dto';
 
 @Controller('questions')
 export class QuestionsController {
@@ -29,7 +31,7 @@ export class QuestionsController {
     @Body() createQuestionDto: CreateQuestionDto,
     @Req() req: ReqWithUser,
   ) {
-    return await this.questionsService.create(
+    return await this.questionsService.createQuestion(
       createQuestionDto,
       req.currentUser.id,
     );
@@ -43,7 +45,7 @@ export class QuestionsController {
 
   @Get(':id')
   @UseGuards(AuthGuard)
-  findOne(@Req() req: ReqWithUser, @Param('id') id: string) {
+  findOne(@Req() req: ReqWithUser, @Param() { id }: IdParamDto) {
     return this.questionsService.findOne(id, req.currentUser);
   }
 
@@ -51,7 +53,7 @@ export class QuestionsController {
   @Patch(':id')
   async update(
     @Req() req: ReqWithUser,
-    @Param('id') id: string,
+    @Param() { id }: IdParamDto,
     @Body() updateQuestionDto: UpdateQuestionDto,
   ) {
     assertHasUpdatePayload(updateQuestionDto);
@@ -65,8 +67,8 @@ export class QuestionsController {
 
   @UseGuards(AuthGuard, RoleGuard)
   @Delete(':id')
-  async remove(@Param('id') id: string, @Req() req: ReqWithUser) {
-    return await this.questionsService.remove(id, req.currentUser.id);
+  async remove(@Param() { id }: IdParamDto, @Req() req: ReqWithUser) {
+    return await this.questionsService.removeQuestion(id, req.currentUser.id);
   }
 
   @UseGuards(AuthGuard, RoleGuard)
@@ -85,14 +87,14 @@ export class QuestionsController {
 
   @UseGuards(AuthGuard, RoleGuard)
   @Delete('options/:id')
-  async deleteOption(@Param('id') id: string, @Req() req: ReqWithUser) {
+  async deleteOption(@Param() { id }: IdParamDto, @Req() req: ReqWithUser) {
     return await this.questionsService.deleteOption(id, req.currentUser.id);
   }
 
   @UseGuards(AuthGuard, RoleGuard)
   @Patch('options/:id')
   async updateOption(
-    @Param('id') id: string,
+    @Param() { id }: IdParamDto,
     @Req() req: ReqWithUser,
     @Body() body: UpdateOptionDto,
   ) {
@@ -102,6 +104,20 @@ export class QuestionsController {
       id,
       req.currentUser.id,
       body,
+    );
+  }
+
+  @UseGuards(AuthGuard, RoleGuard)
+  @Patch('options/:id/correct')
+  async changeCorrectOption(
+    @Param() { id }: IdParamDto,
+    @Req() req: ReqWithUser,
+    @Body() body: ChangeCorrectOptionDto,
+  ) {
+    return await this.questionsService.changeCorrectOption(
+      id,
+      req.currentUser.id,
+      body.new_correct_option_id,
     );
   }
 }

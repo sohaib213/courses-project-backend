@@ -1,6 +1,8 @@
 import { question_type } from '@prisma/client';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
+  IsArray,
+  IsBoolean,
   IsEnum,
   IsNumber,
   IsOptional,
@@ -8,6 +10,7 @@ import {
   IsUUID,
   Min,
 } from 'class-validator';
+import { AddOptionDto } from './add-option.dto';
 
 export class CreateQuestionDto {
   @IsUUID()
@@ -26,4 +29,19 @@ export class CreateQuestionDto {
 
   @IsOptional()
   model_answer?: string;
+
+  @IsOptional()
+  @IsArray()
+  @Type(() => Question_options)
+  options: Question_options[];
+}
+
+class Question_options extends AddOptionDto {
+  @Transform(({ value }: { value: string | boolean }): string | boolean => {
+    if (value === 'true' || value === true) return true;
+    if (value === 'false' || value === false) return false;
+    return value;
+  })
+  @IsBoolean({ message: 'is_correct must be a boolean value' })
+  is_correct: boolean;
 }
