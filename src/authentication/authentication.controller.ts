@@ -70,12 +70,17 @@ export class AuthenticationController {
 
     if (result.requiresProfileCompletion) {
       return res.redirect(
-        `${process.env.FRONTEND_URL}/complete-profile?userId=${result.userId}`,
+        `${process.env.FRONTEND_URL}/auth/google/callback?requiresProfileCompletion=true&userId=${result.userId}&email=${result.email}`,
       );
     }
 
+    if (result.error) {
+      return res.redirect(
+        `${process.env.FRONTEND_URL}/auth/google/callback?error=${encodeURIComponent(result.error)}`,
+      );
+    }
     return res.redirect(
-      `${process.env.FRONTEND_URL}/auth/success?token=${result.accessToken}`,
+      `${process.env.FRONTEND_URL}/auth/google/callback?accessToken=${result.accessToken}`,
     );
   }
 

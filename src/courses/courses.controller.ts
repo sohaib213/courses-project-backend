@@ -26,6 +26,7 @@ import { FindCoursesQueryDto } from './dto/find-corse-query.dto';
 import { UpdateStatusDto } from './dto/update-status.dto';
 import { assertHasUpdatePayload } from 'src/common/utils/checkDataToUpdate';
 import { IdParamDto } from 'src/common/dtos/idParam.dto';
+import { OptionalAuthGuard } from 'src/common/guards/optional-jwt-auth.guard';
 
 @Controller('courses')
 export class CoursesController {
@@ -48,8 +49,13 @@ export class CoursesController {
   }
 
   @Get()
-  findAll(@Query() querry: FindCoursesQueryDto) {
-    return this.coursesService.findAll(querry);
+  @UseGuards(OptionalAuthGuard)
+  async findAll(
+    @Query() query: FindCoursesQueryDto,
+    @Request() reqWithUser: ReqWithUser,
+  ) {
+    const currentUserId = reqWithUser.currentUser?.id;
+    return this.coursesService.findAll(query, currentUserId);
   }
 
   @UseGuards(AuthGuard, RoleGuard)

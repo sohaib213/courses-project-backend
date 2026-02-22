@@ -17,6 +17,13 @@ import type { ReqWithUser } from 'src/common/interfaces/reqWithUser';
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
+
+  @UseGuards(AuthGuard)
+  @Get('me')
+  async me(@Req() req: ReqWithUser) {
+    return this.usersService.findMe(req.currentUser.id);
+  }
+
   @UseGuards(AuthGuard)
   @Get()
   async find(

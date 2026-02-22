@@ -18,11 +18,11 @@ import { LoginDto } from './dto/login.dto';
 import { Prisma } from '@prisma/client';
 import { JwtService } from '@nestjs/jwt';
 import { users } from '@prisma/client';
-import { JwtPayload } from 'jsonwebtoken';
 import { ProfilePictureUrl } from 'src/common/assets/defaultPhotos';
 import { ResetPasswordDto } from './dto/resetPassword.dto';
 import { CompleteProfileDto } from './dto/complete_profile.dto';
 import { CartService } from 'src/cart/cart.service';
+import { JwtPayload } from 'src/common/interfaces/jwtPayload';
 
 export enum ProviderType {
   LOCAL = 'local',
@@ -334,15 +334,21 @@ export class AuthenticationService {
   async generateToken(user: users) {
     const payload: JwtPayload = {
       id: user.id,
-      email: user.email,
-      username: user.username,
       type: user.type,
+      username: user.username,
     };
     const token = await this.jwtService.signAsync(payload);
     return token;
   }
 
   async googleCallback(user: users) {
+    if (user && user.provider !== 'google') {
+      return {
+        requiresProfileCompletion: false,
+        error: `An account with this email already exists using ${user.provider} provider. Please sign in with ${user.provider} instead.`,
+      };
+    }
+
     if (!user.isprofilecomplete) {
       return {
         requiresProfileCompletion: true,

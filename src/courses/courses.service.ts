@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  Inject,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -7,10 +8,12 @@ import { CreateCourseDto } from './dto/create-course.dto';
 import { UpdateCourseDto } from './dto/update-course.dto';
 import { CloudinaryService } from 'src/cloudinary/cloudinary.service';
 import { PrismaService } from 'prisma/prisma.service';
-import { course_status, user_type } from '@prisma/client';
+import { course_status, Prisma, user_type } from '@prisma/client';
 import { CourseCoverURL } from 'src/common/assets/defaultPhotos';
 import { FindCoursesQueryDto } from './dto/find-corse-query.dto';
 import { PageLimitDto } from '../common/dtos/page-limit-dto';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import type { Cache } from 'cache-manager';
 
 @Injectable()
 export class CoursesService {
@@ -19,6 +22,7 @@ export class CoursesService {
   constructor(
     private readonly cloudinaryService: CloudinaryService,
     private readonly prisma: PrismaService,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
   ) {}
 
   async create(
@@ -61,53 +65,151 @@ export class CoursesService {
     return { skip, limitt: limit };
   }
 
-  async findAll(querry: FindCoursesQueryDto) {
-    const { teacher_id, category_id, title_description_search } = querry;
+  async findAll(query: FindCoursesQueryDto, currentUserId?: string) {
+    const {
+      teacher_id,
+      category_id,
+      title_description_search,
+      min_price,
+      max_price,
+    } = query;
+
     const { skip, limitt }: { skip: number; limitt: number } = this.calcSkip(
-      querry.page,
-      querry.limit,
+      query.page,
+      query.limit,
     );
 
-    // console.log('Query params:', { teacher_id, category_id, page, limit });
+    const cacheKey = `courses:${JSON.stringify({
+      teacher_id,
+      category_id,
+      title_description_search,
+      min_price,
+      max_price,
+      skip,
+      limitt,
+      currentUserId,
+    })}`;
+
+    const cached = await this.cacheManager.get(cacheKey);
+    if (cached) return cached;
+    // Validate teacher_id if provided
     if (teacher_id) {
       const teacher = await this.prisma.users.findUnique({
-        where: {
-          id: teacher_id,
-        },
+        where: { id: teacher_id },
       });
-
       if (!teacher || teacher.type !== user_type.Teacher) {
         throw new BadRequestException('invalid teacher id');
       }
     }
 
-    return await this.prisma.courses.findMany({
-      where: {
-        teacher_id,
-        category_id,
-        isReady: true,
-        status: course_status.Approved,
+    const whereClause: Prisma.coursesWhereInput = {
+      isReady: true,
+      status: course_status.Approved,
+    };
 
-        ...(title_description_search && {
-          OR: [
-            {
-              title: {
-                contains: title_description_search,
-                mode: 'insensitive',
-              },
+    if (teacher_id) {
+      whereClause.teacher_id = teacher_id;
+    }
+
+    if (category_id) {
+      whereClause.category_id = category_id;
+    }
+
+    if (min_price !== undefined || max_price !== undefined) {
+      whereClause.price = {};
+      if (min_price !== undefined) {
+        whereClause.price.gte = min_price;
+      }
+      if (max_price !== undefined) {
+        whereClause.price.lte = max_price;
+      }
+    }
+
+    if (title_description_search) {
+      whereClause.OR = [
+        {
+          title: {
+            contains: title_description_search,
+            mode: 'insensitive',
+          },
+        },
+        {
+          description: {
+            contains: title_description_search,
+            mode: 'insensitive',
+          },
+        },
+      ];
+    }
+
+    if (currentUserId) {
+      const currentUser = await this.prisma.users.findUnique({
+        where: { id: currentUserId },
+        select: {
+          type: true,
+          enrollments: {
+            select: {
+              course_id: true,
             },
-            {
-              description: {
-                contains: title_description_search,
-                mode: 'insensitive',
-              },
-            },
-          ],
-        }),
+          },
+        },
+      });
+
+      if (currentUser) {
+        if (currentUser.type === user_type.Teacher) {
+          if (teacher_id === currentUserId) {
+            return [];
+          }
+
+          whereClause.teacher_id = whereClause.teacher_id
+            ? whereClause.teacher_id
+            : { not: currentUserId };
+        } else if (currentUser.type === user_type.Student) {
+          const enrolledCourseIds = currentUser.enrollments.map(
+            (e) => e.course_id,
+          );
+
+          if (enrolledCourseIds.length > 0) {
+            whereClause.id = {
+              notIn: enrolledCourseIds,
+            };
+          }
+        }
+      }
+    }
+
+    const courses = await this.prisma.courses.findMany({
+      where: whereClause,
+      include: {
+        teacher: {
+          select: {
+            id: true,
+            username: true,
+            email: true,
+            image: true,
+          },
+        },
+        category: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        _count: {
+          select: {
+            enrollments: true,
+          },
+        },
       },
       skip,
       take: limitt,
+      orderBy: {
+        createdat: 'desc',
+      },
     });
+    await this.cacheManager.set(cacheKey, courses, 60 * 1000);
+    console.log('courses fetched');
+    return courses;
   }
 
   async findTeacherCourses(querry: PageLimitDto, teacher_id: string) {
@@ -126,7 +228,36 @@ export class CoursesService {
   }
 
   async findOne(id: string) {
-    const course = await this.prisma.courses.findUnique({ where: { id } });
+    const course = await this.prisma.courses.findUnique({
+      where: { id },
+      include: {
+        teacher: {
+          select: {
+            id: true,
+            username: true,
+            email: true,
+            image: true,
+          },
+        },
+        category: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        lessons: {
+          select: {
+            title: true,
+            content_type: true,
+          },
+        },
+        _count: {
+          select: {
+            enrollments: true,
+          },
+        },
+      },
+    });
     if (!course) {
       throw new BadRequestException('Course not found');
     }
@@ -242,4 +373,3 @@ export class CoursesService {
     }
   }
 }
-// https://res.cloudinary.com/dspfo4tsu/image/upload/v1770119258/courses/thumbnails/qefsmhjczpqd1iapt45e.png

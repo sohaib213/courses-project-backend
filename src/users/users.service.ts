@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
 import { CloudinaryService } from 'src/cloudinary/cloudinary.service';
+import { ProfilePictureUrl } from 'src/common/assets/defaultPhotos';
 
 @Injectable()
 export class UsersService {
@@ -16,6 +17,19 @@ export class UsersService {
     return this.prisma.users.findMany({
       select: this.userPublicProberties,
     });
+  }
+
+  async findMe(id: string) {
+    const user = await this.prisma.users.findUnique({
+      where: { id },
+      select: this.userPublicProberties,
+    });
+
+    if (!user) {
+      throw new NotFoundException(`User with ID ${id} not found`);
+    }
+
+    return user;
   }
 
   async findOne(filter: { id?: string; email?: string; username?: string }) {
@@ -83,13 +97,15 @@ export class UsersService {
       select: this.userPublicProberties,
     });
 
-    const oldPublicId = this.cloudinaryService.extractPublicId(
-      currentUser.image,
-    );
-    if (oldPublicId) {
-      this.cloudinaryService.deleteFile(oldPublicId).catch(() => {
-        console.error(`Failed to delete old image: ${oldPublicId}`);
-      });
+    if (currentUser.image !== ProfilePictureUrl) {
+      const oldPublicId = this.cloudinaryService.extractPublicId(
+        currentUser.image,
+      );
+      if (oldPublicId) {
+        this.cloudinaryService.deleteFile(oldPublicId).catch(() => {
+          console.error(`Failed to delete old image: ${oldPublicId}`);
+        });
+      }
     }
 
     return updatedUser;

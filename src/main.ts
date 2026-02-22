@@ -8,9 +8,10 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
     rawBody: true,
   });
-  app.use('/carts/webhooks', bodyParser.raw({ type: 'application/json' }));
+  app.setGlobalPrefix('api');
+  app.use('/api/carts/webhooks', bodyParser.raw({ type: 'application/json' }));
   app.enableCors({
-    origin: process.env.FRONTEND_URL,
+    origin: '*',
     credentials: true,
   });
   app.useGlobalInterceptors(new TransformInterceptor());

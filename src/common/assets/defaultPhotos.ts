@@ -1,5 +1,4 @@
 export const ProfilePictureUrl =
-  'https://res.cloudinary.com/dspfo4tsu/image/upload/v1769085613/2_y50rih.png';
-
+  'https://res.cloudinary.com/dspfo4tsu/image/upload/v1771355339/11_uaza28.jpg';
 export const CourseCoverURL =
-  'https://res.cloudinary.com/dspfo4tsu/image/upload/v1770026271/3d-render-online-education-survey-test-concept_nfogi9.jpg';
+  'https://res.cloudinary.com/dspfo4tsu/image/upload/v1770875747/a_ardouh.jpg';

@@ -19,10 +19,22 @@ import { APP_FILTER } from '@nestjs/core';
 import { QuestionsModule } from './questions/questions.module';
 import { QuizSubmissionsModule } from './submission/submission.module';
 import { AiModule } from './ai/ai.module';
+import { CacheModule } from '@nestjs/cache-manager';
+import KeyvRedis from '@keyv/redis';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    CacheModule.registerAsync({
+      isGlobal: true,
+      useFactory: () => ({
+        stores: [
+          new KeyvRedis(
+            `redis://${process.env.REDIS_HOST}:${process.env.REDIS_PORT}`,
+          ),
+        ],
+      }),
+    }),
     AuthenticationModule,
     PrismaModule,
     CloudinaryModule,
