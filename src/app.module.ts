@@ -21,7 +21,10 @@ import { QuizSubmissionsModule } from './submission/submission.module';
 import { AiModule } from './ai/ai.module';
 import { CacheModule } from '@nestjs/cache-manager';
 import KeyvRedis from '@keyv/redis';
-
+import { ThrottlerModule, ThrottlerGuard, seconds } from '@nestjs/throttler';
+import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis';
+import { APP_GUARD } from '@nestjs/core';
+import Redis from 'ioredis';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -34,6 +37,19 @@ import KeyvRedis from '@keyv/redis';
           ),
         ],
       }),
+    }),
+    ThrottlerModule.forRoot({
+      throttlers: [
+        { name: 'short', ttl: seconds(1), limit: 3 }, // 3 req/sec
+        { name: 'medium', ttl: seconds(10), limit: 20 }, // 20 req/10s
+        { name: 'long', ttl: seconds(60), limit: 100 }, // 100 req/min
+      ],
+      storage: new ThrottlerStorageRedisService(
+        new Redis({
+          host: process.env.REDIS_HOST,
+          port: +process.env.REDIS_PORT,
+        }),
+      ),
     }),
     AuthenticationModule,
     PrismaModule,
@@ -57,6 +73,10 @@ import KeyvRedis from '@keyv/redis';
     {
       provide: APP_FILTER,
       useClass: GlobalExceptionFilter,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
     },
   ],
 })

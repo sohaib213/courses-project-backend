@@ -21,6 +21,7 @@ import { GoogleAuthGuard } from '../common/guards/google-auth.guard';
 import type { Response } from 'express';
 import { CompleteProfileDto } from './dto/complete_profile.dto';
 import { ImageFilePipe } from 'src/common/pipes/image-file.pipe';
+import { seconds, Throttle } from '@nestjs/throttler';
 
 @Controller('auth')
 export class AuthenticationController {
@@ -39,6 +40,7 @@ export class AuthenticationController {
   verigyEmail(@Body() body: { email: string; code: string | number }) {
     return this.authenticationService.verifyEmail(body);
   }
+  @Throttle({ long: { ttl: seconds(60), limit: 5 } })
   @Post('login')
   @HttpCode(HttpStatus.OK)
   login(@Body() body: LoginDto) {
