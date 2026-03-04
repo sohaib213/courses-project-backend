@@ -26,26 +26,29 @@ export class MessagesController {
     return this.messagesService.create(createMessageDto, req.currentUser.id);
   }
 
-  // @Get()
-  // findAll() {
-  //   return this.messagesService.findAll();
-  // }
-
+  @UseGuards(AuthGuard)
   @Get(':id')
   findOne(@Param() { id }: IdParamDto) {
-    return this.messagesService.findOne(+id);
+    return this.messagesService.findOne(id);
   }
 
+  @UseGuards(AuthGuard)
   @Patch(':id')
-  update(
+  async update(
     @Param() { id }: IdParamDto,
     @Body() updateMessageDto: UpdateMessageDto,
+    @Req() req: ReqWithUser,
   ) {
-    return this.messagesService.update(+id, updateMessageDto);
+    return this.messagesService.update(
+      id,
+      updateMessageDto,
+      req.currentUser.id,
+    );
   }
 
+  @UseGuards(AuthGuard)
   @Delete(':id')
-  remove(@Param() { id }: IdParamDto) {
-    return this.messagesService.remove(+id);
+  async remove(@Param() { id }: IdParamDto, @Req() req: ReqWithUser) {
+    return this.messagesService.remove(id, req.currentUser.id);
   }
 }

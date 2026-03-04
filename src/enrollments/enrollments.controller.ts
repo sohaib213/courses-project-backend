@@ -6,6 +6,7 @@ import {
   UseGuards,
   Req,
   Patch,
+  Post,
 } from '@nestjs/common';
 import { EnrollmentsService } from './enrollments.service';
 import { FindEnrollmentDto } from './dto/create-enrollment.dto';
@@ -22,6 +23,12 @@ export class EnrollmentsController {
   @Get()
   findMyEnrollments(@Req() req: ReqWithUser) {
     return this.enrollmentsService.findMyEnrollments(req.currentUser.id);
+  }
+
+  @UseGuards(AuthGuard)
+  @Post('course/:id')
+  enrollInFreeCourse(@Param() { id }: IdParamDto, @Req() req: ReqWithUser) {
+    return this.enrollmentsService.enrollInFreeCourse(id, req.currentUser.id);
   }
 
   @UseGuards(AuthGuard, RoleGuard)

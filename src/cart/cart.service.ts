@@ -141,8 +141,31 @@ export class CartService {
     await this.findCartById(cart_id, user_id);
 
     return await this.prisma.cart_items.findMany({
-      where: {
-        cart_id,
+      where: { cart_id },
+      include: {
+        courses: {
+          select: {
+            id: true,
+            title: true,
+            description: true,
+            price: true,
+            thumbnail_url: true,
+            teacher: {
+              select: {
+                id: true,
+                username: true,
+                email: true,
+                image: true,
+              },
+            },
+            category: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
       },
     });
   }

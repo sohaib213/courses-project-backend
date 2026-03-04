@@ -32,11 +32,47 @@ export class EnrollmentsService {
   }
 
   async findMyEnrollments(userId: string) {
-    return await this.prisma.enrollments.findMany({
+    const enrollments = await this.prisma.enrollments.findMany({
       where: {
         student_id: userId,
       },
+      include: {
+        courses: {
+          include: {
+            teacher: {
+              select: {
+                id: true,
+                username: true,
+                email: true,
+                image: true,
+              },
+            },
+            category: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+            lessons: {
+              select: {
+                id: true,
+                title: true,
+              },
+            },
+            _count: {
+              select: {
+                lessons: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        enrolledat: 'desc', // Most recent enrollments first
+      },
     });
+
+    return enrollments;
   }
 
   async findOne(id: string, userId: string) {
@@ -96,7 +132,7 @@ export class EnrollmentsService {
         current_lesson_order: {
           increment: 1,
         },
-        completed: enrollment.current_lesson_order === course.lessons_number,
+        completed: enrollment.current_lesson_order >= course.lessons_number - 1,
       },
     });
   }
@@ -109,5 +145,36 @@ export class EnrollmentsService {
       },
     });
     return enrollment ? true : false;
+  }
+
+  async enrollInFreeCourse(courseId: string, studentId: string) {
+    const course = await this.prisma.courses.findUnique({
+      where: { id: courseId },
+    });
+    if (!course) {
+      throw new NotFoundException('Course not found.');
+    }
+    if (course.price.toNumber() > 0) {
+      throw new ForbiddenException(
+        'This course is not free. Please purchase it to enroll.',
+      );
+    }
+    const existingEnrollment = await this.prisma.enrollments.findUnique({
+      where: {
+        student_id_course_id: {
+          course_id: courseId,
+          student_id: studentId,
+        },
+      },
+    });
+    if (existingEnrollment) {
+      throw new BadRequestException('You are already enrolled in this course.');
+    }
+    return await this.prisma.enrollments.create({
+      data: {
+        course_id: courseId,
+        student_id: studentId,
+      },
+    });
   }
 }

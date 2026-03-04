@@ -16,7 +16,7 @@ import { CartModule } from 'src/cart/cart.module';
     JwtModule.registerAsync({
       useFactory: (configService: ConfigService) => ({
         secret: configService.get<string>('JWT_SECRET_KEY'),
-        signOptions: { expiresIn: '5m' },
+        signOptions: { expiresIn: '60m' },
       }),
       inject: [ConfigService],
     }),

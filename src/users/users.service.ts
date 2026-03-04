@@ -3,6 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { user_type } from '@prisma/client';
 import { PrismaService } from 'prisma/prisma.service';
 import { CloudinaryService } from 'src/cloudinary/cloudinary.service';
 import { ProfilePictureUrl } from 'src/common/assets/defaultPhotos';
@@ -22,7 +23,7 @@ export class UsersService {
   async findMe(id: string) {
     const user = await this.prisma.users.findUnique({
       where: { id },
-      select: this.userPublicProberties,
+      select: { ...this.userPublicProberties, isprofilecomplete: true },
     });
 
     if (!user) {
@@ -114,6 +115,21 @@ export class UsersService {
   remove(id: string) {
     return `This action removes a #${id} user`;
   }
+
+  async studentsNumber() {
+    const count = await this.prisma.users.count({
+      where: { type: user_type.Student },
+    });
+    return { studentsNumber: count };
+  }
+
+  async teachersNumber() {
+    const count = await this.prisma.users.count({
+      where: { type: user_type.Teacher },
+    });
+    return { teachersNumber: count };
+  }
+
   userPublicProberties = {
     id: true,
     email: true,

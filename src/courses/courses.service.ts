@@ -60,7 +60,7 @@ export class CoursesService {
 
   calcSkip(page: number, limit: number) {
     page = page && page > 0 ? page : 1;
-    limit = limit && limit > 0 ? limit : 10;
+    limit = limit && limit > 0 ? limit : 12;
     const skip = (page - 1) * limit;
     return { skip, limitt: limit };
   }
@@ -74,31 +74,55 @@ export class CoursesService {
       max_price,
     } = query;
 
-    const { skip, limitt }: { skip: number; limitt: number } = this.calcSkip(
-      query.page,
-      query.limit,
-    );
+    const { skip, limitt } = this.calcSkip(query.page, query.limit);
 
-    const cacheKey = `courses:${JSON.stringify({
+    const baseCacheKey = `courses:${JSON.stringify({
       teacher_id,
       category_id,
       title_description_search,
       min_price,
       max_price,
-      skip,
-      limitt,
-      currentUserId,
+      page: query.page,
+      limit: query.limit,
     })}`;
 
-    const cached = await this.cacheManager.get(cacheKey);
-    if (cached) return cached;
-    // Validate teacher_id if provided
-    if (teacher_id) {
-      const teacher = await this.prisma.users.findUnique({
-        where: { id: teacher_id },
-      });
-      if (!teacher || teacher.type !== user_type.Teacher) {
-        throw new BadRequestException('invalid teacher id');
+    let enrolledCourseIds: string[] = [];
+    let userType: user_type | null = null;
+
+    if (currentUserId) {
+      const userCacheKey = `user:${currentUserId}:data`;
+      let userData = await this.cacheManager.get<{
+        type: user_type;
+        enrollments: string[];
+      }>(userCacheKey);
+
+      if (!userData) {
+        const currentUser = await this.prisma.users.findUnique({
+          where: { id: currentUserId },
+          select: {
+            type: true,
+            enrollments: {
+              select: {
+                course_id: true,
+              },
+            },
+          },
+        });
+
+        if (currentUser) {
+          userData = {
+            type: currentUser.type,
+            enrollments: currentUser.enrollments.map((e) => e.course_id),
+          };
+
+          // Cache for 5 minutes
+          await this.cacheManager.set(userCacheKey, userData, 5 * 60 * 1000);
+        }
+      }
+
+      if (userData) {
+        userType = userData.type;
+        enrolledCourseIds = userData.enrollments;
       }
     }
 
@@ -117,12 +141,8 @@ export class CoursesService {
 
     if (min_price !== undefined || max_price !== undefined) {
       whereClause.price = {};
-      if (min_price !== undefined) {
-        whereClause.price.gte = min_price;
-      }
-      if (max_price !== undefined) {
-        whereClause.price.lte = max_price;
-      }
+      if (min_price !== undefined) whereClause.price.gte = min_price;
+      if (max_price !== undefined) whereClause.price.lte = max_price;
     }
 
     if (title_description_search) {
@@ -143,73 +163,71 @@ export class CoursesService {
     }
 
     if (currentUserId) {
-      const currentUser = await this.prisma.users.findUnique({
-        where: { id: currentUserId },
-        select: {
-          type: true,
-          enrollments: {
-            select: {
-              course_id: true,
-            },
-          },
-        },
-      });
+      if (userType === user_type.Teacher && teacher_id === currentUserId) {
+        return {
+          courses: [],
+          count: 0,
+        };
+      }
 
-      if (currentUser) {
-        if (currentUser.type === user_type.Teacher) {
-          if (teacher_id === currentUserId) {
-            return [];
-          }
+      if (userType === user_type.Teacher && !teacher_id) {
+        whereClause.teacher_id = { not: currentUserId };
+      }
 
-          whereClause.teacher_id = whereClause.teacher_id
-            ? whereClause.teacher_id
-            : { not: currentUserId };
-        } else if (currentUser.type === user_type.Student) {
-          const enrolledCourseIds = currentUser.enrollments.map(
-            (e) => e.course_id,
-          );
-
-          if (enrolledCourseIds.length > 0) {
-            whereClause.id = {
-              notIn: enrolledCourseIds,
-            };
-          }
-        }
+      if (enrolledCourseIds.length > 0) {
+        whereClause.id = { notIn: enrolledCourseIds };
       }
     }
 
-    const courses = await this.prisma.courses.findMany({
-      where: whereClause,
-      include: {
-        teacher: {
-          select: {
-            id: true,
-            username: true,
-            email: true,
-            image: true,
+    if (!currentUserId) {
+      const cached = await this.cacheManager.get(baseCacheKey);
+      if (cached) {
+        return cached;
+      }
+    }
+
+    const [courses, totalCount] = await Promise.all([
+      this.prisma.courses.findMany({
+        where: whereClause,
+        include: {
+          teacher: {
+            select: {
+              id: true,
+              username: true,
+              email: true,
+              image: true,
+            },
+          },
+          category: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+          _count: {
+            select: {
+              enrollments: true,
+            },
           },
         },
-        category: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
-        _count: {
-          select: {
-            enrollments: true,
-          },
-        },
-      },
-      skip,
-      take: limitt,
-      orderBy: {
-        createdat: 'desc',
-      },
-    });
-    await this.cacheManager.set(cacheKey, courses, 60 * 1000);
-    console.log('courses fetched');
-    return courses;
+        skip,
+        take: limitt,
+      }),
+      this.prisma.courses.count({
+        where: whereClause,
+      }),
+    ]);
+
+    const result = {
+      courses,
+      count: totalCount,
+    };
+
+    if (!currentUserId) {
+      await this.cacheManager.set(baseCacheKey, result, 60 * 1000);
+    }
+
+    return result;
   }
 
   async findTeacherCourses(querry: PageLimitDto, teacher_id: string) {
@@ -218,13 +236,32 @@ export class CoursesService {
       page,
       limit,
     );
-    return await this.prisma.courses.findMany({
-      where: {
-        teacher_id,
-      },
-      skip,
-      take: limitt,
-    });
+    const [courses, count] = await Promise.all([
+      this.prisma.courses.findMany({
+        where: {
+          teacher_id,
+        },
+        include: {
+          _count: {
+            select: {
+              enrollments: true,
+            },
+          },
+        },
+        skip,
+        take: limitt,
+      }),
+      this.prisma.courses.count({
+        where: {
+          teacher_id,
+        },
+      }),
+    ]);
+
+    return {
+      courses,
+      count,
+    };
   }
 
   async findOne(id: string) {
@@ -249,11 +286,6 @@ export class CoursesService {
           select: {
             title: true,
             content_type: true,
-          },
-        },
-        _count: {
-          select: {
-            enrollments: true,
           },
         },
       },
@@ -323,6 +355,10 @@ export class CoursesService {
     }
   }
 
+  async coursesNumber() {
+    const count = this.prisma.courses.count();
+    return count;
+  }
   // admin only
   async getAllCourses(query: PageLimitDto) {
     const { page, limit } = query;

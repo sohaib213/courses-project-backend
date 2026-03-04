@@ -89,6 +89,7 @@ export class AuthenticationService {
           type: type,
           provider: ProviderType.LOCAL,
           image: profilePictureUrl,
+          isprofilecomplete: true,
           local_credentials: {
             create: {
               password_hash: hashedPassword,

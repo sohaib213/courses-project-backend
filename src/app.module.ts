@@ -40,7 +40,7 @@ import Redis from 'ioredis';
     }),
     ThrottlerModule.forRoot({
       throttlers: [
-        { name: 'short', ttl: seconds(1), limit: 3 }, // 3 req/sec
+        { name: 'short', ttl: seconds(1), limit: 5 }, // 3 req/sec
         { name: 'medium', ttl: seconds(10), limit: 20 }, // 20 req/10s
         { name: 'long', ttl: seconds(60), limit: 100 }, // 100 req/min
       ],

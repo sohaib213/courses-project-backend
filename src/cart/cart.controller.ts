@@ -17,6 +17,7 @@ import { AuthGuard } from 'src/common/guards/authentication.guard';
 import { ConfigService } from '@nestjs/config';
 import Stripe from 'stripe';
 import { IdParamDto } from 'src/common/dtos/idParam.dto';
+import { SkipThrottle } from '@nestjs/throttler';
 
 @Controller('carts')
 export class CartController {
@@ -87,6 +88,7 @@ export class CartController {
     return this.cartService.pay(req.currentUser.id);
   }
 
+  @SkipThrottle()
   @Post('webhooks')
   @HttpCode(200)
   async handleWebhook(

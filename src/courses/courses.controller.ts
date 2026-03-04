@@ -27,6 +27,7 @@ import { UpdateStatusDto } from './dto/update-status.dto';
 import { assertHasUpdatePayload } from 'src/common/utils/checkDataToUpdate';
 import { IdParamDto } from 'src/common/dtos/idParam.dto';
 import { OptionalAuthGuard } from 'src/common/guards/optional-jwt-auth.guard';
+import { CacheInterceptor, CacheTTL } from '@nestjs/cache-manager';
 
 @Controller('courses')
 export class CoursesController {
@@ -46,6 +47,13 @@ export class CoursesController {
       req.currentUser.id,
       file,
     );
+  }
+
+  @UseInterceptors(CacheInterceptor)
+  @CacheTTL(60 * 60)
+  @Get('coursesNumber')
+  async coursesNumber() {
+    return await this.coursesService.coursesNumber();
   }
 
   @Get()

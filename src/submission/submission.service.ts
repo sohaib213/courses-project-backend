@@ -172,10 +172,25 @@ export class QuizSubmissionsService {
         }
       }
 
-      // 3️⃣ Update total grade
+      // 3️⃣ Update total grade + calculate awarded points + update user points
+      const totalLessonDegree = Number(lesson.quiz_grade || 0);
+      const fixedPoints = 10; // move to config/env later
+
+      const awardedPoints =
+        totalLessonDegree > 0
+          ? Math.max(
+              0,
+              Math.round(
+                (Number(totalGrade) / totalLessonDegree) * fixedPoints,
+              ),
+            )
+          : 0;
+
       const finalSubmission = await tx.submissions.update({
         where: { id: createdSubmission.id },
-        data: { grade: totalGrade },
+        data: {
+          grade: totalGrade,
+        },
         include: {
           answers: {
             include: {
@@ -187,10 +202,27 @@ export class QuizSubmissionsService {
         },
       });
 
-      return finalSubmission;
+      const updatedUser = await tx.users.update({
+        where: { id: student.id },
+        data: {
+          points: { increment: awardedPoints },
+        },
+        select: { points: true },
+      });
+
+      return {
+        finalSubmission,
+        awardedPoints,
+        totalPoints: updatedUser.points,
+      };
     });
 
-    return { ...gradedSubmission, quize_grade: lesson.quiz_grade };
+    return {
+      ...gradedSubmission.finalSubmission,
+      quize_grade: lesson.quiz_grade,
+      points_awarded: gradedSubmission.awardedPoints,
+      total_points: gradedSubmission.totalPoints,
+    };
   }
 
   async getQuizSubmission(lessonId: string, user: JwtPayload) {
@@ -208,7 +240,7 @@ export class QuizSubmissionsService {
     // 3️⃣ Fetch submissions
     let submisions: (submissions & {
       answers: (answers & {
-        questions: questions;
+        questions: questions & { options: options[] };
         mcq_tf_answers: mcq_tf_answers & { options: options | null };
         essay_answers: essay_answers | null;
       })[];
@@ -219,7 +251,11 @@ export class QuizSubmissionsService {
         include: {
           answers: {
             include: {
-              questions: true,
+              questions: {
+                include: {
+                  options: true,
+                },
+              },
               mcq_tf_answers: { include: { options: true } },
               essay_answers: true,
             },
@@ -237,7 +273,11 @@ export class QuizSubmissionsService {
         include: {
           answers: {
             include: {
-              questions: true,
+              questions: {
+                include: {
+                  options: true,
+                },
+              },
               mcq_tf_answers: { include: { options: true } },
               essay_answers: true,
             },
@@ -254,8 +294,17 @@ export class QuizSubmissionsService {
     submisions.forEach((submission) => {
       submission.answers.forEach((answer) => {
         if (answer.mcq_tf_answers) {
+          const correctOption = answer.questions?.options?.find(
+            (o) => o.is_correct,
+          );
+
           answer.mcq_tf_answers['isCorrect'] =
             answer.mcq_tf_answers.options?.is_correct ?? false;
+
+          answer.mcq_tf_answers['correct_option_id'] =
+            correctOption?.id ?? null;
+          answer.mcq_tf_answers['correct_option_text'] =
+            correctOption?.option_text ?? null;
         }
       });
     });

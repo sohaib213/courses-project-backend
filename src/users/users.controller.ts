@@ -13,6 +13,7 @@ import { AuthGuard } from 'src/common/guards/authentication.guard';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ImageFilePipe } from 'src/common/pipes/image-file.pipe';
 import type { ReqWithUser } from 'src/common/interfaces/reqWithUser';
+import { CacheInterceptor, CacheTTL } from '@nestjs/cache-manager';
 
 @Controller('users')
 export class UsersController {
@@ -24,7 +25,6 @@ export class UsersController {
     return this.usersService.findMe(req.currentUser.id);
   }
 
-  @UseGuards(AuthGuard)
   @Get()
   async find(
     @Query('email') email?: string,
@@ -62,5 +62,19 @@ export class UsersController {
     file?: Express.Multer.File,
   ) {
     return this.usersService.update(req.currentUser.id, file);
+  }
+
+  @UseInterceptors(CacheInterceptor)
+  @CacheTTL(60 * 60)
+  @Get('studentsNumber')
+  async studentsNumber() {
+    return this.usersService.studentsNumber();
+  }
+
+  @UseInterceptors(CacheInterceptor)
+  @CacheTTL(60 * 60)
+  @Get('teachersNumber')
+  async teachersNumber() {
+    return this.usersService.teachersNumber();
   }
 }
