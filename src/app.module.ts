@@ -31,11 +31,7 @@ import Redis from 'ioredis';
     CacheModule.registerAsync({
       isGlobal: true,
       useFactory: () => ({
-        stores: [
-          new KeyvRedis(
-            `redis://${process.env.REDIS_HOST}:${process.env.REDIS_PORT}`,
-          ),
-        ],
+        stores: [new KeyvRedis(process.env.REDIS_URL)],
       }),
     }),
     ThrottlerModule.forRoot({
@@ -45,10 +41,7 @@ import Redis from 'ioredis';
         { name: 'long', ttl: seconds(60), limit: 100 }, // 100 req/min
       ],
       storage: new ThrottlerStorageRedisService(
-        new Redis({
-          host: process.env.REDIS_HOST,
-          port: +process.env.REDIS_PORT,
-        }),
+        new Redis(process.env.REDIS_URL),
       ),
     }),
     AuthenticationModule,
