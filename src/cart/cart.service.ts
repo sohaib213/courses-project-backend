@@ -243,7 +243,7 @@ export class CartService {
     const session = await this.stripe.checkout.sessions.create({
       line_items,
       mode: 'payment',
-      success_url: `${this.config.get<string>('FRONTEND_URL')}/payment?success=true`,
+      success_url: `${this.config.get<string>('FRONTEND_URL')}/my-courses`,
       cancel_url: `${this.config.get<string>('FRONTEND_URL')}/payment?success=false`,
       client_reference_id: user_id,
       metadata: {
